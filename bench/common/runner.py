@@ -140,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="disable supersede linker (ablation)")
     ap.add_argument("--no-summary-doc", action="store_true",
                     help="disable per-session aggregate doc (ablation)")
+    ap.add_argument("--markdown-digest", action="store_true",
+                    help="build a conversation-level markdown digest during ingest and feed it to the reader")
     ap.add_argument("--no-cross-encoder", action="store_true",
                     help="disable cross-encoder reranker")
     ap.add_argument("--no-llm-rerank", action="store_true",
@@ -222,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         enable_observer=not args.no_observer,
         enable_linker=not args.no_linker,
         enable_summary_doc=not args.no_summary_doc,
+        enable_markdown_digest=args.markdown_digest,
         enable_cross_encoder=not args.no_cross_encoder,
         enable_llm_rerank=not args.no_llm_rerank,
     )
