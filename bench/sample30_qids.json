@@ -1,0 +1,127 @@
+{
+  "all_failed": [
+    "3fe836c9",
+    "c8f1aeed",
+    "46a3abf7",
+    "e831120c",
+    "0862e8bf",
+    "2c63a862",
+    "d6233ab6",
+    "dccbc061",
+    "41275add",
+    "gpt4_cd90e484",
+    "75499fd8",
+    "3d86fd0a",
+    "35a27287",
+    "gpt4_7de946e7",
+    "a82c026e",
+    "10d9b85a",
+    "09d032c9",
+    "6a1eabeb",
+    "22d2cb42",
+    "06f04340",
+    "bbf86515",
+    "7161e7e2",
+    "06878be2",
+    "cc539528",
+    "b01defab",
+    "1b9b7252",
+    "18bc8abd",
+    "gpt4_fe651585_abs",
+    "a96c20ee",
+    "07741c45"
+  ],
+  "metadata": {
+    "3fe836c9": {
+      "category": "multi-session"
+    },
+    "c8f1aeed": {
+      "category": "single-session-assistant"
+    },
+    "46a3abf7": {
+      "category": "multi-session"
+    },
+    "e831120c": {
+      "category": "multi-session"
+    },
+    "0862e8bf": {
+      "category": "single-session-user"
+    },
+    "2c63a862": {
+      "category": "temporal-reasoning"
+    },
+    "d6233ab6": {
+      "category": "single-session-preference"
+    },
+    "dccbc061": {
+      "category": "single-session-user"
+    },
+    "41275add": {
+      "category": "single-session-assistant"
+    },
+    "gpt4_cd90e484": {
+      "category": "temporal-reasoning"
+    },
+    "75499fd8": {
+      "category": "single-session-user"
+    },
+    "3d86fd0a": {
+      "category": "single-session-user"
+    },
+    "35a27287": {
+      "category": "single-session-preference"
+    },
+    "gpt4_7de946e7": {
+      "category": "temporal-reasoning"
+    },
+    "a82c026e": {
+      "category": "single-session-user"
+    },
+    "10d9b85a": {
+      "category": "multi-session"
+    },
+    "09d032c9": {
+      "category": "single-session-preference"
+    },
+    "6a1eabeb": {
+      "category": "knowledge-update"
+    },
+    "22d2cb42": {
+      "category": "knowledge-update"
+    },
+    "06f04340": {
+      "category": "single-session-preference"
+    },
+    "bbf86515": {
+      "category": "temporal-reasoning"
+    },
+    "7161e7e2": {
+      "category": "single-session-assistant"
+    },
+    "06878be2": {
+      "category": "single-session-preference"
+    },
+    "cc539528": {
+      "category": "single-session-assistant"
+    },
+    "b01defab": {
+      "category": "knowledge-update"
+    },
+    "1b9b7252": {
+      "category": "single-session-assistant"
+    },
+    "18bc8abd": {
+      "category": "knowledge-update"
+    },
+    "gpt4_fe651585_abs": {
+      "category": "temporal-reasoning"
+    },
+    "a96c20ee": {
+      "category": "multi-session"
+    },
+    "07741c45": {
+      "category": "knowledge-update"
+    }
+  },
+  "note": "fresh stratified sample, seed=7, 5/category"
+}
