@@ -1,8 +1,7 @@
 """Memori notebook-compatible LoCoMo judge.
 
-Memori's published benchmark uses a generous CORRECT/WRONG LLM judge rather
-than the stricter bool judge in `bench.locomo.eval`. This module mirrors the
-notebook prompt and parser so ours-vs-Memori comparisons use the same
+Memori's published benchmark uses a generous CORRECT/WRONG LLM judge. This
+module mirrors the notebook prompt and parser so comparisons use the same
 evaluation contract.
 """
 
@@ -19,7 +18,6 @@ from pathlib import Path
 from tqdm import tqdm
 
 from bench.locomo.adapter import load
-from bench.locomo.eval import f1
 from memory.infra.llm import chat_text
 
 
@@ -69,6 +67,29 @@ def parse_judge_label(response: str) -> str | None:
     if has_wrong and not has_correct:
         return "WRONG"
     return None
+
+
+def f1(prediction: str, ground_truth: str) -> float:
+    pred_tokens = _normalize_answer(prediction).split()
+    gold_tokens = _normalize_answer(ground_truth).split()
+    if not pred_tokens and not gold_tokens:
+        return 1.0
+    if not pred_tokens or not gold_tokens:
+        return 0.0
+    common = collections.Counter(pred_tokens) & collections.Counter(gold_tokens)
+    num_same = sum(common.values())
+    if num_same == 0:
+        return 0.0
+    precision = num_same / len(pred_tokens)
+    recall = num_same / len(gold_tokens)
+    return 2 * precision * recall / (precision + recall)
+
+
+def _normalize_answer(text: str) -> str:
+    text = text.lower()
+    text = re.sub(r"\b(a|an|the)\b", " ", text)
+    text = re.sub(r"[^a-z0-9 ]", " ", text)
+    return " ".join(text.split())
 
 
 def _question_lookup() -> dict[str, str]:
