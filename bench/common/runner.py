@@ -61,6 +61,7 @@ def _process_instance(
     *,
     pre_memories: list[dict] | None = None,
     max_steps: int = 1,
+    memori_style: bool = False,
 ) -> Hypothesis:
     from memory import Memory
     from memory.pipeline.ingest import materialise_observations
@@ -105,6 +106,7 @@ def _process_instance(
                 inst.question.question,
                 query_date=inst.question.question_date,
                 max_steps=max_steps,
+                memori_style=memori_style,
             )
         return Hypothesis(
             question_id=inst.question.question_id,
@@ -119,6 +121,95 @@ def _process_instance(
             category=inst.question.category,
             gold=inst.question.answer if isinstance(inst.question.answer, str) else json.dumps(inst.question.answer),
         )
+    finally:
+        for p in (db_path, idx_path, db_path + "-wal", db_path + "-shm"):
+            try:
+                os.remove(p)
+            except FileNotFoundError:
+                pass
+
+
+def _group_key(inst: Instance) -> str:
+    """Stable haystack key for reuse-ingest benchmark runs."""
+    if "-q" in inst.instance_id:
+        return inst.instance_id.rsplit("-q", 1)[0]
+    return "|".join(s.session_id for s in inst.sessions) or inst.instance_id
+
+
+def _process_group(
+    group_key: str,
+    instances: list[Instance],
+    work_dir: str,
+    mem_kwargs: dict,
+    *,
+    pre_memories: list[dict] | None = None,
+    max_steps: int = 1,
+    memori_style: bool = False,
+) -> list[Hypothesis]:
+    from memory import Memory
+    from memory.pipeline.ingest import materialise_observations
+
+    if not instances:
+        return []
+    safe_key = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in group_key)
+    db_path = os.path.join(work_dir, f"{safe_key}.db")
+    idx_path = db_path + ".faiss"
+    try:
+        with Memory(db_path=db_path, index_path=idx_path, **mem_kwargs) as mem:
+            sessions = instances[0].sessions
+            mem.ingest_sessions_parallel([
+                {
+                    "session_id": s.session_id,
+                    "session_date": s.session_date,
+                    "turns": s.turns,
+                }
+                for s in sessions
+            ])
+            if pre_memories is not None:
+                mem_session_id = f"{group_key}-pre"
+                mem_session_date = (
+                    instances[0].question.question_date or "1970-01-01T00:00"
+                )
+                materialise_observations(
+                    mem.conn, mem.faiss, pre_memories,
+                    turn_ids=[],
+                    session_id=mem_session_id,
+                    session_date=mem_session_date,
+                )
+
+            out: list[Hypothesis] = []
+            for inst in instances:
+                try:
+                    ans = mem.answer(
+                        inst.question.question,
+                        query_date=inst.question.question_date,
+                        max_steps=max_steps,
+                        memori_style=memori_style,
+                    )
+                    out.append(Hypothesis(
+                        question_id=inst.question.question_id,
+                        hypothesis=ans,
+                        category=inst.question.category,
+                        gold=inst.question.answer if isinstance(inst.question.answer, str) else json.dumps(inst.question.answer),
+                    ))
+                except Exception as e:
+                    out.append(Hypothesis(
+                        question_id=inst.question.question_id,
+                        hypothesis=f"ERROR: {type(e).__name__}: {e}",
+                        category=inst.question.category,
+                        gold=inst.question.answer if isinstance(inst.question.answer, str) else json.dumps(inst.question.answer),
+                    ))
+            return out
+    except Exception as e:
+        return [
+            Hypothesis(
+                question_id=inst.question.question_id,
+                hypothesis=f"ERROR: {type(e).__name__}: {e}",
+                category=inst.question.category,
+                gold=inst.question.answer if isinstance(inst.question.answer, str) else json.dumps(inst.question.answer),
+            )
+            for inst in instances
+        ]
     finally:
         for p in (db_path, idx_path, db_path + "-wal", db_path + "-shm"):
             try:
@@ -165,6 +256,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-steps", type=int, default=1,
                     help="reader budget. 1 = one-shot reader (default). >1 enables ReAct "
                          "loop with raw_turn_search / raw_session_read / memory_search tools.")
+    ap.add_argument("--memori-style", action="store_true",
+                    help="use the minimal Memori-style reader (top observations + session "
+                         "summaries + ReMe-style answer prompt) regardless of --memory-only. "
+                         "Auto-on when --memory-only is set.")
+    ap.add_argument("--observer-style", choices=["classic", "advanced"], default="classic",
+                    help="observer extraction style. 'advanced' uses the independent "
+                         "facts+context+triple extractor.")
+    ap.add_argument("--reuse-ingest", action="store_true",
+                    help="group instances with the same haystack and ingest once; "
+                         "especially useful for LoCoMo where many questions share "
+                         "one conversation.")
     args = ap.parse_args(argv)
 
     instances = _load_instances(args.bench, args.limit)
@@ -227,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         enable_markdown_digest=args.markdown_digest,
         enable_cross_encoder=not args.no_cross_encoder,
         enable_llm_rerank=not args.no_llm_rerank,
+        observer_style=args.observer_style,
     )
 
     t0 = time.time()
@@ -238,24 +341,55 @@ def main(argv: list[str] | None = None) -> int:
                 fout.write(line + "\n")
             fout.flush()
         futures = {}
-        for inst in instances:
-            pre_mem = None
-            if pre_memory_lookup is not None:
-                from bench.locomo.memori_memories import conv_id_from_instance
-                pre_mem = pre_memory_lookup.get(conv_id_from_instance(inst.instance_id), [])
-            futures[pool.submit(
-                _process_instance,
-                inst,
-                work_dir,
-                mem_kwargs,
-                pre_memories=pre_mem,
-                max_steps=args.max_steps,
-            )] = inst
-        for fut in tqdm(as_completed(futures), total=len(futures), desc=args.bench):
-            h = fut.result()
-            results.append(h)
-            fout.write(json.dumps(asdict(h)) + "\n")
-            fout.flush()
+        if args.reuse_ingest:
+            grouped: dict[str, list[Instance]] = collections.defaultdict(list)
+            for inst in instances:
+                grouped[_group_key(inst)].append(inst)
+            print(
+                f"[runner] reuse-ingest: {len(grouped)} haystacks for "
+                f"{len(instances)} instances",
+                file=sys.stderr,
+            )
+            for key, group in grouped.items():
+                pre_mem = None
+                if pre_memory_lookup is not None:
+                    pre_mem = pre_memory_lookup.get(key, [])
+                futures[pool.submit(
+                    _process_group,
+                    key,
+                    group,
+                    work_dir,
+                    mem_kwargs,
+                    pre_memories=pre_mem,
+                    max_steps=args.max_steps,
+                    memori_style=(pre_memory_lookup is not None) or args.memori_style,
+                )] = key
+            for fut in tqdm(as_completed(futures), total=len(futures), desc=f"{args.bench}:haystacks"):
+                hs = fut.result()
+                results.extend(hs)
+                for h in hs:
+                    fout.write(json.dumps(asdict(h)) + "\n")
+                fout.flush()
+        else:
+            for inst in instances:
+                pre_mem = None
+                if pre_memory_lookup is not None:
+                    from bench.locomo.memori_memories import conv_id_from_instance
+                    pre_mem = pre_memory_lookup.get(conv_id_from_instance(inst.instance_id), [])
+                futures[pool.submit(
+                    _process_instance,
+                    inst,
+                    work_dir,
+                    mem_kwargs,
+                    pre_memories=pre_mem,
+                    max_steps=args.max_steps,
+                    memori_style=(pre_memory_lookup is not None) or args.memori_style,
+                )] = inst
+            for fut in tqdm(as_completed(futures), total=len(futures), desc=args.bench):
+                h = fut.result()
+                results.append(h)
+                fout.write(json.dumps(asdict(h)) + "\n")
+                fout.flush()
 
     print(
         f"[runner] {args.bench}: {len(results)} new + {len(done_ids)} resumed "

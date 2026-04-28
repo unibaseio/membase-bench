@@ -126,6 +126,16 @@ def _build_sessions(sample_id: str, conv: dict[str, Any]) -> list[Session]:
         for t in turns_raw:
             speaker = t.get("speaker") or t.get("role") or "user"
             text = t.get("text") or t.get("content") or ""
+            # LoCoMo turns may include shared images with captions.
+            # Incorporate blip_caption / query so the pipeline can
+            # retrieve and reason over visual content.
+            blip = t.get("blip_caption") or ""
+            query = t.get("query") or ""
+            if blip or query:
+                img_desc = query if query else blip
+                if query and blip:
+                    img_desc = f"{query} — {blip}"
+                text = f"[Shared image: {img_desc}] {text}".strip()
             # LoCoMo is two-speaker dialogue. Use the speaker name as the role
             # so observer/reader can attribute facts. Keep the prefix in
             # content for BM25/embedding recall on the speaker name.
