@@ -25,8 +25,10 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
         from bench.locomo.adapter import load as _load
     elif name in ("longmemeval", "lme", "longmem"):
         from bench.longmemeval.adapter import load as _load
+    elif name in ("beam",):
+        from bench.beam.adapter import load as _load
     else:
         raise ValueError(
-            f"unknown BENCH_DATASET={name!r}; expected 'locomo' or 'longmemeval'"
+            f"unknown BENCH_DATASET={name!r}; expected 'locomo', 'longmemeval', or 'beam'"
         )
     return _load(limit=limit, path=path)
