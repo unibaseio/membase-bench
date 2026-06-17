@@ -39,7 +39,7 @@ from bench.common.runners import (
     stratified_sample as _stratified_sample,
 )
 from bench.common.types import Hypothesis, Instance
-from bench.locomo.adapter import load
+from bench.common.dataset import load
 
 
 _ANSWER_PROMPT = """\

@@ -31,9 +31,19 @@ def stratified_sample(instances: list[Instance], n_per_cat: int, seed: int) -> l
 
 
 def group_key(inst: Instance) -> str:
+    """Key that groups questions sharing one haystack, so a runner
+    ingests the haystack once and answers every question against it.
+
+    LoCoMo: many questions share a conversation — ``conv-26-q0`` →
+    ``conv-26``. LongMemEval: each question carries its *own* haystack
+    (53 distractor sessions, no sharing) and the instance_id is the
+    unique question_id, so the question_id itself is the group. (The old
+    fallback joined all session_ids, which on LongMemEval produced a
+    1000-char string that overflowed db filenames.)
+    """
     if "-q" in inst.instance_id:
         return inst.instance_id.rsplit("-q", 1)[0]
-    return "|".join(s.session_id for s in inst.sessions) or inst.instance_id
+    return inst.instance_id
 
 
 def safe_id(raw: str) -> str:
