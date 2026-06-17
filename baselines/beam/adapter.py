@@ -151,14 +151,29 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
             for q in (qs or []):
                 if not isinstance(q, dict):
                     continue
+                # BEAM stores the gold under a category-specific field:
+                #   answer               event_ordering / information_extraction /
+                #                        knowledge_update / multi_session_reasoning /
+                #                        temporal_reasoning
+                #   ideal_answer         contradiction_resolution
+                #   ideal_summary        summarization
+                #   ideal_response       abstention
+                #   expected_compliance  instruction_following / preference_following
+                gold = (
+                    q.get("answer")
+                    or q.get("ideal_answer")
+                    or q.get("ideal_summary")
+                    or q.get("ideal_response")
+                    or q.get("expected_compliance")
+                )
                 question = Question(
                     question_id=f"{conv_id}-{category}-{qi}",
                     question=q.get("question", ""),
                     question_date=None,
-                    answer=q.get("ideal_response"),
+                    answer=gold,
                     category=category,
                     extra={"difficulty": q.get("difficulty"),
-                           "abstention_type": q.get("abstention_type")},
+                           "rubric": q.get("rubric")},
                 )
                 # instance_id "<conv>-q<n>" → group_key() returns "<conv>",
                 # so all questions of a conversation share one ingest.
