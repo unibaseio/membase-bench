@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -35,3 +35,7 @@ class Hypothesis:
     hypothesis: str
     category: str
     gold: str | None
+    # Retrieval provenance for scoring evidence recall without the answer model.
+    # Optional so older runners keep constructing Hypothesis positionally.
+    retrieved_sessions: list[str] = field(default_factory=list)
+    retrieved_observations: int = 0

@@ -1,19 +1,7 @@
-"""LoCoMo loader.
+"""LoCoMo loader (snap-research/locomo, data/locomo10.json).
 
-Source: https://github.com/snap-research/locomo (data/locomo10.json — 10 conversations,
-each with multiple sessions, 300+ turns avg, and a `qa` list).
-
-Each conversation roughly:
-  {
-    "sample_id": "...",
-    "conversation": {
-       "session_1": [{speaker, text, time?, ...}, ...],
-       "session_1_date_time": "1:56 pm on 8 May, 2023",
-       "session_2": [...], "session_2_date_time": "...",
-       ...
-    },
-    "qa": [{"question": "...", "answer": "...", "category": 1..5, "evidence": [...]}, ...]
-  }
+Each conversation carries ``session_<n>`` turn lists with ``session_<n>_date_time``
+strings and a ``qa`` list of {question, answer, category, evidence}.
 """
 
 from __future__ import annotations
@@ -30,13 +18,18 @@ from bench.common.types import Instance, Question, Session
 DATA_URL = "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json"
 DEFAULT_CACHE = Path(os.environ.get("UNIBASE_DATA_DIR", "data")) / "locomo10.json"
 
+# Counter-intuitive but verified against the data: cat 1 is multi-hop, cat 4 single-hop.
 CATEGORY_NAMES = {
-    1: "single_hop",
-    2: "multi_hop",
-    3: "temporal",
-    4: "open_domain",
+    1: "multi_hop",
+    2: "temporal",
+    3: "open_domain",
+    4: "single_hop",
     5: "adversarial",
 }
+
+# Category 5 (adversarial) needs a refusal-aware judge; dropping it leaves the 1,540
+# questions that published LoCoMo numbers are reported over.
+EXCLUDED_CATEGORIES = frozenset({5})
 
 
 def _ensure_dataset(path: Path = DEFAULT_CACHE) -> Path:
@@ -76,7 +69,16 @@ def _norm_date(s: str | None) -> str:
     return f"{y:04d}-{mon:02d}-{d:02d}T{h:02d}:{mm:02d}"
 
 
-def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
+def load(
+    limit: int | None = None,
+    path: str | None = None,
+    *,
+    include_adversarial: bool = False,
+) -> list[Instance]:
+    """Load LoCoMo instances; ``include_adversarial`` keeps category 5.
+
+    ``question_id`` indexes the unfiltered ``qa`` list, so ids are stable either way.
+    """
     p = Path(path) if path else _ensure_dataset()
     if not p.exists():
         p = _ensure_dataset(p)
@@ -91,7 +93,10 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
             if limit is not None and count >= limit:
                 return instances
             cat_id = q.get("category", 0)
-            cat = CATEGORY_NAMES.get(int(cat_id) if str(cat_id).isdigit() else 0, "unknown")
+            cat_int = int(cat_id) if str(cat_id).isdigit() else 0
+            if not include_adversarial and cat_int in EXCLUDED_CATEGORIES:
+                continue
+            cat = CATEGORY_NAMES.get(cat_int, "unknown")
             ans = q.get("answer")
             if isinstance(ans, list):
                 ans = "; ".join(str(a) for a in ans)
@@ -101,7 +106,11 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
                 question_date=_latest_session_date(sessions),
                 answer=ans,
                 category=cat,
-                extra={"evidence": q.get("evidence", [])},
+                extra={
+                    "evidence": q.get("evidence", []),
+                    # The one owner partition queried (speaker_a), matching Membase's adapter.
+                    "eval_owner": str(conv.get("conversation", {}).get("speaker_a", "")),
+                },
             )
             instances.append(Instance(
                 instance_id=question.question_id,
@@ -126,9 +135,7 @@ def _build_sessions(sample_id: str, conv: dict[str, Any]) -> list[Session]:
         for t in turns_raw:
             speaker = t.get("speaker") or t.get("role") or "user"
             text = t.get("text") or t.get("content") or ""
-            # LoCoMo turns may include shared images with captions.
-            # Incorporate blip_caption / query so the pipeline can
-            # retrieve and reason over visual content.
+            # Fold shared-image captions into the turn text.
             blip = t.get("blip_caption") or ""
             query = t.get("query") or ""
             if blip or query:
@@ -136,9 +143,7 @@ def _build_sessions(sample_id: str, conv: dict[str, Any]) -> list[Session]:
                 if query and blip:
                     img_desc = f"{query} — {blip}"
                 text = f"[Shared image: {img_desc}] {text}".strip()
-            # LoCoMo is two-speaker dialogue. Use the speaker name as the role
-            # so observer/reader can attribute facts. Keep the prefix in
-            # content for BM25/embedding recall on the speaker name.
+            # Speaker name as role; the prefix stays in content for lexical/embedding recall.
             turns.append({
                 "role": speaker,
                 "content": f"{speaker}: {text}",
@@ -155,3 +160,20 @@ def _build_sessions(sample_id: str, conv: dict[str, Any]) -> list[Session]:
 
 def _latest_session_date(sessions: list[Session]) -> str:
     return max((s.session_date for s in sessions), default="1970-01-01T00:00")
+
+
+_EVIDENCE_RE = re.compile(r"D(\d+):")
+
+
+def gold_sessions(question: Question) -> set[str]:
+    """Session ids cited by the gold evidence (``D<session>:<turn>``), in ``_build_sessions``'s scheme.
+
+    Empty when nothing resolves; callers should skip those rather than score them 0.
+    """
+    sample_id = question.question_id.rsplit("-q", 1)[0]
+    out: set[str] = set()
+    for ev in question.extra.get("evidence") or []:
+        m = _EVIDENCE_RE.match(str(ev))
+        if m:
+            out.add(f"{sample_id}-session_{int(m.group(1))}")
+    return out
