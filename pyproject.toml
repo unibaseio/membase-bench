@@ -1,0 +1,27 @@
+[project]
+name = "membase-bench"
+version = "0.1.0"
+description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (membase-algo)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    # The engine under test, pinned so every published number maps to one engine commit.
+    "unibase-supermem @ git+https://github.com/unibaseio/unibase-supermem.git@c9d26ed1c21b9efe6685e293474ea0968c384e5c",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "ruff==0.15.12"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
