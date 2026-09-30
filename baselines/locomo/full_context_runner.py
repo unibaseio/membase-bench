@@ -24,10 +24,10 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from unibase_membase.config import load_config
-from bench.common.runners import stratified_sample as _stratified_sample
-from bench.common.types import Hypothesis, Instance
-from bench.common.dataset import load
+from baselines.common.config import load_config
+from baselines.common.runners import stratified_sample as _stratified_sample
+from baselines.common.types import Hypothesis, Instance
+from baselines.common.dataset import load
 
 
 _PROMPT = """\

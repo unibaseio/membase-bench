@@ -30,16 +30,16 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from unibase_membase.config import load_config
-from bench.common.runners import (
+from baselines.common.config import load_config
+from baselines.common.runners import (
     gold_text,
     group_key as _group_key,
     make_retrieval_row,
     safe_id as _safe_user_id,
     stratified_sample as _stratified_sample,
 )
-from bench.common.types import Hypothesis, Instance
-from bench.common.dataset import load
+from baselines.common.types import Hypothesis, Instance
+from baselines.common.dataset import load
 
 
 _ANSWER_PROMPT = """\

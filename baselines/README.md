@@ -7,10 +7,10 @@ Memori-compatible LLM judge.
 ## Layout
 
 ```
-bench/
+baselines/
 ├── common/types.py                Shared dataclasses (Instance, Question, Hypothesis)
 └── locomo/
-    ├── adapter.py                 Loads `bench/data/locomo10.json` (auto-downloads)
+    ├── adapter.py                 Loads `baselines/data/locomo10.json` (auto-downloads)
     ├── membase_runner.py          Membase 2.0 — Recovery + Runtime
     ├── mem0_runner.py             mem0 baseline (mem0ai)
     ├── memori_runner.py           Memori baseline (memori / memorisdk)
@@ -51,7 +51,7 @@ pip install zep-cloud                   # for the zep runner (needs ZEP_API_KEY)
 
 ## Run
 
-The dataset is downloaded on first use to `bench/data/locomo10.json` (155 MB).
+The dataset is downloaded on first use to `baselines/data/locomo10.json` (155 MB).
 
 ### Membase 2.0
 

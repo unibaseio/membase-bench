@@ -1,7 +1,7 @@
 """Aggregate per-runner judged.jsonl files into a single comparison table.
 
 Usage:
-  python -m bench.locomo.report runs/membase.judged.jsonl runs/mem0.judged.jsonl ...
+  python -m baselines.locomo.report runs/membase.judged.jsonl runs/mem0.judged.jsonl ...
   membase bench locomo report runs/*.judged.jsonl
 
 Output columns (matching the LoCoMo paper convention):

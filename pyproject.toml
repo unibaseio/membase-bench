@@ -13,6 +13,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.2", "ruff==0.15.12"]
+# Competitor baselines (baselines/): one extra per system, since their dependency trees clash.
+mem0 = ["mem0ai"]
+memori = ["memori"]
+langmem = ["langmem", "langgraph"]
+zep = ["zep-cloud"]
+graphiti = ["graphiti-core[falkordb]"]
 
 [tool.uv]
 package = false

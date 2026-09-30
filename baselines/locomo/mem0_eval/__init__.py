@@ -21,7 +21,7 @@ Vendoring instead of importing keeps Membase a single repository that can
 reproduce the comparison without cloning a second tree.
 """
 
-from bench.locomo.mem0_eval.prompts import (
+from baselines.locomo.mem0_eval.prompts import (
     ANSWER_GENERATION_PROMPT,
     CATEGORIES_TO_EVALUATE,
     CATEGORY_NAMES,

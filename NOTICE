@@ -1,0 +1,9 @@
+membase-bench
+Copyright (c) 2026 membase-bench contributors
+
+MIT-licensed (see LICENSE), except:
+
+baselines/locomo/mem0_eval/
+    Evaluation prompts and scaffold following mem0's LoCoMo evaluation (Apache License 2.0,
+    see baselines/locomo/mem0_eval/LICENSE). Changed: wired to this harness's data loaders and
+    model configuration.

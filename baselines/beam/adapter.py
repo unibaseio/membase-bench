@@ -36,7 +36,7 @@ import random
 import re
 from pathlib import Path
 
-from bench.common.types import Instance, Question, Session
+from baselines.common.types import Instance, Question, Session
 
 _HF_REPO = "Mohammadta/BEAM"
 _HF_REPO_10M = "Mohammadta/BEAM-10M"

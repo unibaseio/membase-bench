@@ -17,9 +17,9 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from bench.locomo.adapter import load
-from unibase_membase.config import load_config
-from unibase_membase.core.llm import chat_text
+from baselines.locomo.adapter import load
+from baselines.common.config import load_config
+from baselines.common.llm import chat_text
 
 
 ACCURACY_PROMPT = """

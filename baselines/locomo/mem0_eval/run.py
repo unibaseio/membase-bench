@@ -27,7 +27,7 @@ Output JSONL is one line per question with fields:
   (CORRECT / WRONG), correct (bool), reasoning (judge's one-liner).
 
 Usage:
-  python -m bench.locomo.mem0_eval.run RETRIEVAL.jsonl --out JUDGED.jsonl \\
+  python -m baselines.locomo.mem0_eval.run RETRIEVAL.jsonl --out JUDGED.jsonl \\
     --answerer-model gpt-4o --judge-model gpt-4o --top-k 200
 """
 
@@ -43,8 +43,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from unibase_membase.config import load_config
-from bench.locomo.mem0_eval.prompts import (
+from baselines.common.config import load_config
+from baselines.locomo.mem0_eval.prompts import (
     CATEGORIES_TO_EVALUATE,
     CATEGORY_NAMES,
     JUDGE_SYSTEM_PROMPT,
@@ -96,7 +96,7 @@ def _strip_answer_marker(generated: str) -> str:
 def _generate_answer(llm_cfg, model: str, question: str, memories: list[dict],
                       reference_date: str | None,
                       max_completion_tokens: int = 1024) -> str:
-    from unibase_membase.core.llm import chat_text
+    from baselines.common.llm import chat_text
     prompt = get_answer_generation_prompt(
         question=question, search_results=memories, reference_date=reference_date,
     )
@@ -111,7 +111,7 @@ def _generate_answer(llm_cfg, model: str, question: str, memories: list[dict],
 
 def _judge_answer(llm_cfg, model: str, category_id: int, question: str,
                    gold: str, hypothesis: str) -> tuple[bool, str]:
-    from unibase_membase.core.llm import chat_json
+    from baselines.common.llm import chat_json
     prompt = get_judge_prompt(
         category=category_id, question=question,
         answer=preprocess_answer(category_id, gold), response=hypothesis,

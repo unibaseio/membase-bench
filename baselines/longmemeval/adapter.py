@@ -32,7 +32,7 @@ import os
 import re
 from pathlib import Path
 
-from bench.common.types import Instance, Question, Session
+from baselines.common.types import Instance, Question, Session
 
 # The cleaned short split. Override with BENCH_LONGMEMEVAL_PATH or pass path=.
 DATA_URL = (

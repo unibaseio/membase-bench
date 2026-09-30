@@ -45,13 +45,13 @@ warnings.filterwarnings("ignore", message=".*legacy package name.*")
 
 from tqdm import tqdm
 
-from unibase_membase.config import load_config
-from bench.common.runners import (
+from baselines.common.config import load_config
+from baselines.common.runners import (
     group_key as _group_key,
     stratified_sample as _stratified_sample,
 )
-from bench.common.types import Hypothesis, Instance
-from bench.locomo.adapter import load
+from baselines.common.types import Hypothesis, Instance
+from baselines.locomo.adapter import load
 
 
 _ANSWER_PROMPT = """\
