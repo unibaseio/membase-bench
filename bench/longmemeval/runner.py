@@ -1,7 +1,9 @@
-"""Run LongMemEval_S through the engine, one store per question (same harness shape as the upstream benchmark adapter).
+"""Run LongMemEval_S through the Membase engine (membase-core public API), one store per
+question (same harness shape as the upstream benchmark adapter).
 
-An empty search records ``[NO_CONTEXT]`` and never calls the model, so ``_abs`` questions
-are not graded CORRECT for the wrong reason.
+The reader uses the ``answer_longmemeval`` prompt with the question's "Current Date" line.
+An empty retrieval records ``[NO_CONTEXT]`` (the reader's reply, if any, is discarded), so
+``_abs`` questions are not graded CORRECT for the wrong reason.
 """
 
 from __future__ import annotations
@@ -21,10 +23,10 @@ from tqdm import tqdm
 
 from bench.common.types import Hypothesis, Instance
 from bench.longmemeval.adapter import EVAL_OWNER, load
-from memory import CoreMemoryEngine
-from memory.recall.answer import answer_question
+from membase_core import CoreMemoryEngine
 
 NO_CONTEXT = "[NO_CONTEXT]"
+ANSWER_PROMPT = "answer_longmemeval"
 
 
 def _answer(
@@ -45,24 +47,21 @@ def _answer(
                         }
                         for s in inst.sessions
                     ],
-                    max_observer_workers=ingest_workers,
+                    max_workers=ingest_workers,
                     episode_owner=EVAL_OWNER,
                 )
                 if keep_store:
                     Path(marker).write_text("ok")
             q = inst.question
-            result = engine.search(q.question, q.question_date, owner=EVAL_OWNER)
-            if not result.observations_top:
-                return Hypothesis(q.question_id, NO_CONTEXT, q.category, q.answer, [], 0)
-            ans = answer_question(
-                engine.conn,
+            ans = engine.answer_detail(
                 q.question,
                 q.question_date,
-                result,
-                model=engine.reader_model,
-                context_style="episodes",
+                owner=EVAL_OWNER,
+                answer_prompt=ANSWER_PROMPT,
                 reader_date_line=True,  # LongMemEval has a real per-question date
             )
+            if not ans.retrieval.observations_top:
+                return Hypothesis(q.question_id, NO_CONTEXT, q.category, q.answer, [], 0)
             return Hypothesis(
                 q.question_id,
                 ans.answer,
@@ -107,8 +106,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--resume", action="store_true")
     args = ap.parse_args(argv)
 
-    os.environ.setdefault("SUPERMEM_ANSWER_PROMPT", "answer_longmemeval")
-    os.environ.setdefault("SUPERMEM_ANSWER_MAX_TOKENS", "16384")
+    # The reader's output budget; the published runs used 16384 (gpt-5.5 reasons at length).
+    os.environ.setdefault("MEMBASE_ANSWER_MAX_TOKENS", "16384")
 
     instances = load()
     if args.stride > 1:

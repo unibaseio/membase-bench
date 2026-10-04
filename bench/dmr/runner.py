@@ -1,4 +1,5 @@
-"""Run DMR through the engine, answering with Zep's prompt verbatim on gpt-4o-mini."""
+"""Run DMR through the Membase engine (membase-core public API): retrieve with
+``engine.search`` and answer with Zep's prompt verbatim on gpt-4o-mini, outside the engine."""
 
 from __future__ import annotations
 
@@ -15,9 +16,9 @@ from pathlib import Path
 from tqdm import tqdm
 
 from bench.common.types import Hypothesis, Instance
+from bench.common.llm import chat_text
 from bench.dmr.adapter import EVAL_OWNER, load
-from memory import CoreMemoryEngine
-from memory.infra.llm import chat_text
+from membase_core import CoreMemoryEngine, RetrievalResult
 
 ANSWER_MODEL = os.environ.get("DMR_ANSWER_MODEL", "gpt-4o-mini")
 SYSTEM = (
@@ -35,7 +36,7 @@ Respond with an ANSWER section containing your answer. As well as an EVIDENCE se
 """
 
 
-def _context(result) -> str:
+def _context(result: RetrievalResult) -> str:
     lines = []
     for c in result.observations_top:
         lines.append(f"- {c.subject or ''}: {c.text}" if c.source == "episode" else f"- {c.text}")
@@ -59,7 +60,7 @@ def _answer(inst: Instance, work_dir: str, keep: bool, ingest_workers: int) -> H
                         }
                         for s in inst.sessions
                     ],
-                    max_observer_workers=ingest_workers,
+                    max_workers=ingest_workers,
                     episode_owner=EVAL_OWNER,
                 )
                 if keep:

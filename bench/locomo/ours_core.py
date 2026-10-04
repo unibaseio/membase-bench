@@ -1,4 +1,9 @@
-"""Run LoCoMo through the extracted core memory engine."""
+"""Run LoCoMo through the Membase engine (membase-core public API).
+
+Published configuration: episodes are extracted for each conversation's ``speaker_a`` only and
+search is scoped to that owner; the reader uses the ``answer_locomo`` prompt with no
+"Current Date" line (LoCoMo has no per-question date).
+"""
 
 from __future__ import annotations
 
@@ -19,7 +24,9 @@ from tqdm import tqdm
 
 from bench.common.types import Hypothesis, Instance
 from bench.locomo.adapter import load
-from memory import CoreMemoryEngine
+from membase_core import CoreMemoryEngine
+
+ANSWER_PROMPT = "answer_locomo"
 
 
 def _stratified_sample(instances: list[Instance], n_per_cat: int, seed: int) -> list[Instance]:
@@ -55,6 +62,8 @@ def _answer_one(engine: CoreMemoryEngine, inst: Instance) -> Hypothesis:
             inst.question.question,
             query_date=inst.question.question_date,
             owner=inst.question.extra.get("eval_owner") or None,
+            answer_prompt=ANSWER_PROMPT,
+            reader_date_line=False,
         )
         ans = detail.answer
         retrieved_sessions = list(detail.context.context_session_ids)
@@ -103,11 +112,7 @@ def _answer_group(
                         for s in instances[0].sessions
                     ],
                     # One episode owner per conversation (speaker_a), as Membase's adapter.
-                    episode_owner=(
-                        instances[0].question.extra.get("eval_owner")
-                        if os.environ.get("SUPERMEM_EPISODE_OWNER_FROM_BENCH") == "1"
-                        else None
-                    ),
+                    episode_owner=instances[0].question.extra.get("eval_owner") or None,
                 )
                 if keep_store:
                     Path(done_marker).write_text("ok")

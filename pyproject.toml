@@ -1,13 +1,15 @@
 [project]
 name = "membase-bench"
 version = "0.1.0"
-description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (membase-algo)."
+description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (membase-core)."
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE", "NOTICE", "baselines/locomo/mem0_eval/LICENSE"]
 dependencies = [
-    # The engine under test, pinned so every published number maps to one engine commit.
-    "unibase-supermem @ git+https://github.com/unibaseio/unibase-supermem.git@c9d26ed1c21b9efe6685e293474ea0968c384e5c",
+    # The engine under test, pinned to one commit. The harness uses only its public API
+    # (the names exported by `membase_core`, the CoreMemoryEngine methods, MEMBASE_* settings).
+    "membase-core @ git+https://github.com/unibaseio/membase-core.git@6e097e8a2d3e2fc367d7b2d80775c01bae4a21dd",
     # Judges, the DMR reader and the baselines call OpenAI directly (bench/common/llm.py).
     "openai>=1.50",
     "pydantic>=2",
@@ -23,8 +25,16 @@ langmem = ["langmem", "langgraph"]
 zep = ["zep-cloud"]
 graphiti = ["graphiti-core[falkordb]"]
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# The engine is pinned by git commit until membase-core is on PyPI.
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["bench", "baselines"]
 
 [tool.ruff]
 line-length = 100
