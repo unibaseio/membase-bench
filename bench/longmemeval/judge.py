@@ -9,16 +9,16 @@ import argparse
 import collections
 import json
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from tqdm import tqdm
 
+from bench.common.llm import chat_text
 from bench.locomo.memori_official_eval import ACCURACY_PROMPT
 from bench.longmemeval.adapter import load
 from bench.longmemeval.runner import NO_CONTEXT
-from memory.infra.llm import chat_text
-from memory.infra.llm.membase_client import get_llm_client
 
 _ABSTAIN = (
     "ADDITIONAL GRADING RULE (takes precedence): This question is UNANSWERABLE from the "
@@ -56,11 +56,45 @@ def parse_label(content: str) -> str | None:
     return label if label in ("CORRECT", "WRONG") else None
 
 
-def _judge_membase(row: dict, *, model: str, meta: dict, runs: int) -> dict:
-    """Same prompt through membase's ``allm_judge``: ``runs`` parallel calls, majority vote."""
-    from asgiref.sync import async_to_sync
-    from membase_algo.testing.judge import allm_judge
+def _vote_label(content: str) -> tuple[bool, str]:
+    """One majority-vote reply: the outermost ``{...}`` must parse and carry a CORRECT/WRONG
+    ``label``; anything else raises so the run is retried."""
+    i, j = content.find("{"), content.rfind("}")
+    if i < 0 or j < i:
+        raise ValueError(f"No JSON object found in judge LLM response: {content[:200]!r}")
+    data = json.loads(content[i : j + 1])
+    if "label" not in data:
+        raise ValueError(f"Judge JSON missing 'label': {data!r}")
+    label = str(data["label"]).strip().upper()
+    if label not in ("CORRECT", "WRONG"):
+        raise ValueError(f"Unknown judge label: {label!r}")
+    return label == "CORRECT", str(data.get("reasoning", ""))
 
+
+def _vote_once(prompt: str, model: str, max_retries: int = 5) -> tuple[bool, str]:
+    """One vote: any failure (transport or parse) retried with 1, 2, 4, 8 s backoff; the last
+    failure propagates."""
+    for attempt in range(max_retries):
+        try:
+            return _vote_label(chat_text(model, "", prompt, max_tokens=2048) or "")
+        except Exception:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1.0 * (2**attempt))
+    raise AssertionError("unreachable")
+
+
+def majority_vote(prompt: str, *, model: str, runs: int) -> tuple[bool, list[bool], list[str]]:
+    """``runs`` independent judge calls in parallel; CORRECT when more than half say so."""
+    with ThreadPoolExecutor(max_workers=max(1, runs)) as pool:
+        outcomes = list(pool.map(lambda _: _vote_once(prompt, model), range(runs)))
+    votes = [c for c, _ in outcomes]
+    return sum(votes) > runs / 2, votes, [r for _, r in outcomes]
+
+
+def _judge_membase(row: dict, *, model: str, meta: dict, runs: int) -> dict:
+    """Same prompt, graded by ``runs`` parallel calls and a majority vote (Membase's
+    ``allm_judge`` protocol)."""
     m = meta.get(row["question_id"], {})
     if row.get("hypothesis") == NO_CONTEXT or str(row.get("hypothesis", "")).startswith("ERROR"):
         return {
@@ -74,16 +108,13 @@ def _judge_membase(row: dict, *, model: str, meta: dict, runs: int) -> dict:
     template = ACCURACY_PROMPT.replace("{generated_answer}", "{response}")
     if clause:
         template = f"{clause}\n\n{template}"
+    prompt = template.format(
+        question=m.get("question", ""),
+        gold_answer=str(row.get("gold", "")),
+        response=str(row.get("hypothesis", "")),
+    )
     try:
-        res = async_to_sync(allm_judge)(
-            question=m.get("question", ""),
-            golden_answer=str(row.get("gold", "")),
-            generated_answer=str(row.get("hypothesis", "")),
-            judge_prompt=template,
-            llm=get_llm_client(model),
-            num_runs=runs,
-            judge_model=model,
-        )
+        is_correct, votes, reasoning = majority_vote(prompt, model=model, runs=runs)
     except Exception:  # noqa: BLE001 -- every retry failed: leaves the denominator, as below
         return {
             **row,
@@ -92,15 +123,15 @@ def _judge_membase(row: dict, *, model: str, meta: dict, runs: int) -> dict:
             "correct": False,
             "excluded": True,
         }
-    label = "CORRECT" if res.is_correct else "WRONG"
+    label = "CORRECT" if is_correct else "WRONG"
     return {
         **row,
         "question": m.get("question", ""),
         "label": label,
-        "correct": res.is_correct,
+        "correct": is_correct,
         "excluded": False,
-        "judge_runs": res.runs,
-        "judge_reasoning": res.reasoning,
+        "judge_runs": votes,
+        "judge_reasoning": reasoning,
     }
 
 
@@ -148,13 +179,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--membase-judge",
         action="store_true",
-        help="Grade through membase_algo.testing.judge.allm_judge instead of the inline loop.",
+        help="Grade each row by --judge-runs parallel calls and a majority vote instead of the "
+        "inline loop.",
     )
     ap.add_argument(
         "--judge-runs",
         type=int,
         default=1,
-        help="With --membase-judge: independent judge calls per row, majority vote (default 3).",
+        help="With --membase-judge: independent judge calls per row, majority vote.",
     )
     args = ap.parse_args(argv)
     rows = [json.loads(line) for line in Path(args.hypotheses).read_text().splitlines() if line.strip()]

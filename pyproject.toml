@@ -8,6 +8,9 @@ license = { text = "MIT" }
 dependencies = [
     # The engine under test, pinned so every published number maps to one engine commit.
     "unibase-supermem @ git+https://github.com/unibaseio/unibase-supermem.git@c9d26ed1c21b9efe6685e293474ea0968c384e5c",
+    # Judges, the DMR reader and the baselines call OpenAI directly (bench/common/llm.py).
+    "openai>=1.50",
+    "pydantic>=2",
     "tqdm>=4.66",
 ]
 

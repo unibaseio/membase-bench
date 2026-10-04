@@ -12,8 +12,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from bench.common.llm import chat_text
 from bench.locomo.adapter import load
-from memory.infra.llm import chat_text
 
 
 ACCURACY_PROMPT = """
