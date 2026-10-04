@@ -30,7 +30,7 @@ the published runs were produced on `c9d26ed`.
 ## Setup
 
 ```bash
-uv sync --extra dev          # installs membase-core 0.2.0 from PyPI (Python 3.12+)
+uv sync --extra dev          # installs membase-core 0.2.1 from PyPI (Python 3.12+)
 export OPENAI_API_KEY=...
 ```
 
