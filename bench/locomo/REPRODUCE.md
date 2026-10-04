@@ -1,7 +1,42 @@
-# Reproducing the LoCoMo number
+# Reproducing the benchmark numbers
+
+> **Which engine these numbers come from.** Every number in this file was measured on engine
+> commit [`c9d26ed`](https://github.com/unibaseio/membase-core/commit/c9d26ed1c21b9efe6685e293474ea0968c384e5c),
+> the pre-cleanup engine (then `unibase-supermem`, import `memory`, `SUPERMEM_*` settings). In that
+> engine the multiround episode lane searched a FAISS index shared with observation, turn and
+> session vectors, so it kept only the episodes among a global top 200 (13–16 of a lane sized for
+> 50), and the reader context appended two session summaries after the episodes. membase-core
+> searches and packs episodes only. **None of these numbers has been re-measured on membase-core
+> yet**; treat them as the published record of `c9d26ed`, not as a measurement of the pinned
+> engine. The recipes below run the current engine; the
+> [last section](#reproducing-the-published-runs-c9d26ed) reproduces the published runs.
+
+## Running on membase-core (current recipe)
+
+Episodes are always extracted and `multiround` is the default retrieval mode, so only the models
+need setting. The runners pass the per-benchmark choices to `CoreMemoryEngine` themselves:
+
+| | answer prompt | "Current Date" line | episode owner / search owner |
+|---|---|---|---|
+| LoCoMo (`bench/locomo/ours_core.py`) | `answer_locomo` | off | each conversation's `speaker_a` |
+| LongMemEval (`bench/longmemeval/runner.py`) | `answer_longmemeval` (16384-token budget) | on | `user` |
+| DMR (`bench/dmr/runner.py`) | Zep's prompt, outside the engine (`gpt-4o-mini`) | n/a | `A` |
+
+```bash
+export MEMBASE_EPISODE_MODEL=gpt-4.1-mini
+export MEMBASE_DECIDER_MODEL=gpt-4.1-mini
+export MEMBASE_READER_MODEL=gpt-4.1-mini      # LoCoMo; gpt-5.5 for LongMemEval; unused by DMR
+```
+
+Commands for each benchmark are in its section below. Add `--limit N` to any runner for a smoke run.
+
+---
+
+# LoCoMo
 
 **93.12% micro accuracy on the 1,540 graded LoCoMo questions** (categories 1–4; category 5
-dropped, as every published LoCoMo figure does). Measured 2026-09-18 on a fresh store.
+dropped, as every published LoCoMo figure does). Measured 2026-09-18 on a fresh store, engine
+`c9d26ed`.
 
 | category    | n    | ours   |
 |-------------|------|--------|
@@ -21,14 +56,10 @@ config. Embedding is `text-embedding-3-small`. Retrieval is `multiround` over **
 `speaker_a`, one owner partition per conversation.
 
 ```bash
-export SUPERMEM_EPISODES=1                 # extract episodes at ingest (membase, generic prompt)
-export SUPERMEM_RETRIEVAL_MODE=multiround  # LLM-guided multi-round decider retrieval
-export SUPERMEM_CONTEXT_STYLE=episodes     # flat "{title}: {body}" context, no date line
-export SUPERMEM_EPISODE_MODEL=gpt-4.1-mini
-export SUPERMEM_READER_MODEL=gpt-4.1-mini
-export SUPERMEM_DECIDER_MODEL=gpt-4.1-mini
-export SUPERMEM_EPISODE_OWNER_FROM_BENCH=1 # episodes for speaker_a only, owner-scoped search
-# SUPERMEM_RETRIEVAL_UNITS defaults to "episode"; "episode,observation" is the 91.56% arm.
+export MEMBASE_EPISODE_MODEL=gpt-4.1-mini MEMBASE_DECIDER_MODEL=gpt-4.1-mini
+export MEMBASE_READER_MODEL=gpt-4.1-mini
+# The runner extracts episodes for speaker_a only, scopes search to that owner, and answers
+# with answer_locomo and no date line.
 
 python -m bench.locomo.ours_core --out runs/<arm>.jsonl --workdir .cache/<arm> \
     --workers 4 --question-workers 8 --resume
@@ -45,8 +76,9 @@ Cost: ~\$5 to build the 10 stores, ~\$8 per full answer+judge pass. Wall clock �
 - **`aextract(cell, sender_id=None)`** — the generic whole-cell episode prompt. The user-centred
   prompt (`sender_id=<owner>`) produced episodes 61% as long, dropped the other speaker's facts,
   and emitted Spanish for some speaker names. This one argument was worth ~2pp overall.
-- **Episodes only in the context.** Adding observations (`SUPERMEM_RETRIEVAL_UNITS=episode,observation`)
-  scores 91.56%: their `(on <session date>)` stamp is the date a fact was *said* and mis-anchors
+- **Episodes only in the context.** Adding observations (on `c9d26ed`,
+  `SUPERMEM_RETRIEVAL_UNITS=episode,observation`; membase-core has no observations) scores
+  91.56%: their `(on <session date>)` stamp is the date a fact was *said* and mis-anchors
   temporal answers (temporal 82.9% vs 91.6%).
 - **No "Current Date" line** (`reader_date_line=False`). LoCoMo has no per-question date; the
   loader's fabricated one mis-anchors relative-date arithmetic.
@@ -67,8 +99,8 @@ Arms and stores from the alignment work: `runs/baseline_phaseA*` 86.30, `runs/v2
 
 # LongMemEval_S — full 500 (2026-09-21)
 
-**92.60% micro (463/500), Wilson 95% CI 90.0–94.6.** Reader `gpt-5.5`, extractor/decider
-`gpt-4.1-mini`, observer off, same harness as below.
+**92.60% micro (463/500), Wilson 95% CI 90.0–94.6** (engine `c9d26ed`). Reader `gpt-5.5`, extractor/decider
+`gpt-4.1-mini`, same harness as below.
 
 | type | n | acc |
 |---|---|---|
@@ -122,10 +154,8 @@ context. The misses are aggregation over dense narratives — counting instances
 checked to be faithful to the raw text on three of them. The remaining lever is the answer model.
 
 ```bash
-export SUPERMEM_EPISODES=1 SUPERMEM_RETRIEVAL_MODE=multiround SUPERMEM_CONTEXT_STYLE=episodes
-export SUPERMEM_EPISODE_MODEL=gpt-4.1-mini SUPERMEM_DECIDER_MODEL=gpt-4.1-mini
-export SUPERMEM_READER_MODEL=gpt-5.5         # 96.0 on the sample (gpt-5.4 89.0, gpt-5-mini 87.0, gpt-4.1-mini 83.0)
-export SUPERMEM_OBSERVER=0                   # episode-only path never reads observations
+export MEMBASE_EPISODE_MODEL=gpt-4.1-mini MEMBASE_DECIDER_MODEL=gpt-4.1-mini
+export MEMBASE_READER_MODEL=gpt-5.5          # 96.0 on the sample (gpt-5.4 89.0, gpt-5-mini 87.0, gpt-4.1-mini 83.0)
 python -m bench.longmemeval.runner --out runs/lme.jsonl --workers 8 --ingest-workers 16 \
     --workdir .cache/lme --resume                  # add --stride 5 for the 100-q sample
 python -m bench.longmemeval.judge runs/lme.jsonl --out runs/lme.judged.jsonl
@@ -141,7 +171,7 @@ Cost/time: ingest ≈ 47 sessions × 3 LLM calls per question; at 8 questions ×
 
 # DMR — Deep Memory Retrieval (MSC-Self-Instruct, full 500, 2026-09-21)
 
-**92.20% (461/500), Wilson 95% CI 89.5–94.2.** Zep reports 94.8 and MemGPT 93.4 on the same 500 —
+**92.20% (461/500), Wilson 95% CI 89.5–94.2** (engine `c9d26ed`). Zep reports 94.8 and MemGPT 93.4 on the same 500 —
 both inside our interval; the three are not statistically distinguishable at n=500.
 
 Protocol is Zep's published harness (`zep-papers/.../zep_memgpt_eval.ipynb`) verbatim: all five
@@ -159,8 +189,7 @@ cream and cats" absent). Only 4 misses are abstentions. 0 errors, 0 skipped cell
 Cost ≈ $8, wall 32 min at 12 workers.
 
 ```bash
-export SUPERMEM_EPISODES=1 SUPERMEM_RETRIEVAL_MODE=multiround SUPERMEM_CONTEXT_STYLE=episodes
-export SUPERMEM_EPISODE_MODEL=gpt-4.1-mini SUPERMEM_DECIDER_MODEL=gpt-4.1-mini SUPERMEM_OBSERVER=0
+export MEMBASE_EPISODE_MODEL=gpt-4.1-mini MEMBASE_DECIDER_MODEL=gpt-4.1-mini
 python -m bench.dmr.runner --out runs/dmr_full.jsonl --workers 12 --workdir .cache/dmr --resume
 python -m bench.dmr.judge runs/dmr_full.jsonl --out runs/dmr_full.judged.jsonl
 ```
@@ -188,3 +217,24 @@ FTS + multi-round decider LLM calls. Context tokens = tiktoken over the exact re
 For reference, mem0's paper (OSS, LoCoMo): 1,764 memory tokens/q, search p50 0.148 s / p95 0.200 s,
 total p50 0.708 s / p95 1.44 s; its 2026 platform: 6,956 tokens/q. Our search latency is an order of
 magnitude higher because the decider is 1–3 LLM round-trips per query; context volume is on par.
+
+---
+
+# Reproducing the published runs (c9d26ed)
+
+The numbers above were produced on engine commit `c9d26ed` with this harness as it stood
+before the move to membase-core's public API. membase-bench commit `e92b7ca` is the last one
+pinned to `c9d26ed`; check it out to rerun them. That engine uses the old names, and the current
+harness does not run against it.
+
+```bash
+git checkout e92b7ca && uv sync --extra dev    # pins unibase-supermem @ c9d26ed
+export SUPERMEM_EPISODES=1 SUPERMEM_RETRIEVAL_MODE=multiround SUPERMEM_CONTEXT_STYLE=episodes
+export SUPERMEM_EPISODE_MODEL=gpt-4.1-mini SUPERMEM_DECIDER_MODEL=gpt-4.1-mini
+export SUPERMEM_READER_MODEL=gpt-4.1-mini      # LoCoMo; gpt-5.5 for LongMemEval; unused by DMR
+export SUPERMEM_EPISODE_OWNER_FROM_BENCH=1     # LoCoMo: episodes for speaker_a only
+# SUPERMEM_RETRIEVAL_UNITS defaulted to "episode"; "episode,observation" is the 91.56% LoCoMo arm.
+# SUPERMEM_OBSERVER=0 appears in old notes for LongMemEval/DMR; the engine ignored it.
+```
+
+The commands are the same as in each section above.
