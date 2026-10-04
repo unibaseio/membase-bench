@@ -11,15 +11,9 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      # The pinned engine repo is private until it is published; give CI read access to it.
-      ENGINE_READ_TOKEN: ${{ secrets.ENGINE_READ_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: Engine repo access
-        if: env.ENGINE_READ_TOKEN != ''
-        run: git config --global url."https://x-access-token:${ENGINE_READ_TOKEN}@github.com/".insteadOf "https://github.com/"
       - run: uv venv --python 3.12
       # CPU torch: sentence-transformers would otherwise pull the multi-GB CUDA build.
       - run: uv pip install --torch-backend cpu -r pyproject.toml --extra dev

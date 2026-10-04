@@ -1,7 +1,7 @@
 # Reproducing the benchmark numbers
 
 > **Which engine these numbers come from.** Every number in this file was measured on engine
-> commit [`c9d26ed`](https://github.com/unibaseio/membase-core/commit/c9d26ed1c21b9efe6685e293474ea0968c384e5c),
+> commit `c9d26ed` (internal),
 > the pre-cleanup engine (then `unibase-supermem`, import `memory`, `SUPERMEM_*` settings). In that
 > engine the multiround episode lane searched a FAISS index shared with observation, turn and
 > session vectors, so it kept only the episodes among a global top 200 (13–16 of a lane sized for

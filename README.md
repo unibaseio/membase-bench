@@ -1,10 +1,14 @@
 # membase-bench
 
-Benchmark harnesses for [membase-core](https://github.com/unibaseio/membase-core), the
+Benchmark harnesses for [membase-core](https://pypi.org/project/membase-core/), the
 Membase memory engine: **LoCoMo**, **LongMemEval_S** and **DMR**, plus competitor baselines on
 the same data. The harness drives the engine through its public API only (`CoreMemoryEngine`
 and the `MEMBASE_*` settings); judges and baselines call OpenAI through their own client
 (`bench/common/llm.py`), never through the engine under test.
+
+The harness is open source (MIT). membase-core itself is proprietary and is installed from PyPI as
+compiled wheels (CPython 3.12 / 3.13 on Linux, macOS and Windows); its license allows running
+these benchmarks.
 
 ## Published numbers
 
@@ -14,25 +18,23 @@ and the `MEMBASE_*` settings); judges and baselines call OpenAI through their ow
 | LongMemEval_S | 500 | 92.60% | gpt-5.5 |
 | DMR | 500 | 92.20% | gpt-4o-mini |
 
-**These were measured on engine commit
-[`c9d26ed`](https://github.com/unibaseio/membase-core/commit/c9d26ed1c21b9efe6685e293474ea0968c384e5c)**,
+**These were measured on engine commit `c9d26ed`** (internal),
 the pre-cleanup engine (then `unibase-supermem`, import `memory`, `SUPERMEM_*` settings). In that
 engine the episode vector lane was diluted by observation, turn and session vectors in the same
 index, and the reader context carried two session summaries after the episodes. membase-core
 searches episodes only and packs episodes only, so the pinned engine is a different system:
 **the numbers have not been re-measured on membase-core yet.** Configurations, costs and
-ablations are in [bench/locomo/REPRODUCE.md](bench/locomo/REPRODUCE.md), which also says how
-to reproduce the published runs on `c9d26ed`.
+ablations are in [bench/locomo/REPRODUCE.md](bench/locomo/REPRODUCE.md), which also records how
+the published runs were produced on `c9d26ed`.
 
 ## Setup
 
 ```bash
-uv sync --extra dev          # installs the pinned engine (Python 3.12+)
+uv sync --extra dev          # installs membase-core 0.2.0 from PyPI (Python 3.12+)
 export OPENAI_API_KEY=...
 ```
 
-`pyproject.toml` pins membase-core to one commit. To run against a local engine checkout
-instead: `uv pip install -e ../membase-core`.
+`pyproject.toml` pins the engine version, so every result maps to one engine release.
 
 Datasets are not redistributed. `bench/locomo/adapter.py` downloads LoCoMo into `data/` on
 first use; the LongMemEval and DMR loaders document where to place their files
