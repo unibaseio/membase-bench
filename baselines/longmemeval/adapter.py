@@ -39,7 +39,7 @@ DATA_URL = (
     "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/"
     "resolve/main/longmemeval_s_cleaned.json"
 )
-DEFAULT_CACHE = Path(os.environ.get("UNIBASE_DATA_DIR", "bench/data")) / "longmemeval_s.json"
+DEFAULT_CACHE = Path(os.environ.get("BENCH_DATA_DIR", "data")) / "longmemeval_s.json"
 
 # "2023/05/30 (Tue) 23:40" -> "2023-05-30T23:40"
 _DATE_RE = re.compile(

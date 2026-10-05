@@ -28,7 +28,7 @@ from typing import Any
 from baselines.common.types import Instance, Question, Session
 
 DATA_URL = "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json"
-DEFAULT_CACHE = Path(os.environ.get("UNIBASE_DATA_DIR", "bench/data")) / "locomo10.json"
+DEFAULT_CACHE = Path(os.environ.get("BENCH_DATA_DIR", "data")) / "locomo10.json"
 
 CATEGORY_NAMES = {
     1: "single_hop",

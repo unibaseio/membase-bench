@@ -14,7 +14,8 @@ from pathlib import Path
 
 from bench.common.types import Instance, Question, Session
 
-DEFAULT_PATH = Path(os.environ.get("UNIBASE_DATA_DIR", "data")) / "dmr" / "msc_self_instruct.jsonl"
+DEFAULT_PATH = Path(os.environ.get("BENCH_DATA_DIR", "data")) / "dmr" / "msc_self_instruct.jsonl"
+DATA_URL = "https://huggingface.co/datasets/MemGPT/MSC-Self-Instruct/resolve/main/msc_self_instruct.jsonl"
 EVAL_OWNER = "A"
 _ANCHOR = datetime(2023, 11, 14, 22, 0)
 _UNIT = {
@@ -51,7 +52,10 @@ def _turns(msgs: list[dict]) -> list[dict]:
 
 
 def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
-    rows = [json.loads(line) for line in Path(path or DEFAULT_PATH).read_text().splitlines() if line.strip()]
+    src = Path(path or DEFAULT_PATH)
+    if not src.exists():
+        raise SystemExit(f"MSC-Self-Instruct not found at {src}; download it with\n  curl -L --create-dirs -o {src} {DATA_URL}")
+    rows = [json.loads(line) for line in src.read_text().splitlines() if line.strip()]
     out: list[Instance] = []
     for i, r in enumerate(rows):
         if limit is not None and i >= limit:

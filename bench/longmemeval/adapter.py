@@ -14,7 +14,8 @@ from pathlib import Path
 
 from bench.common.types import Instance, Question, Session
 
-DEFAULT_PATH = Path(os.environ.get("UNIBASE_DATA_DIR", "data")) / "longmemeval_s.json"
+DEFAULT_PATH = Path(os.environ.get("BENCH_DATA_DIR", "data")) / "longmemeval_s.json"
+DATA_URL = "https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_s"
 EVAL_OWNER = "user"
 
 _DATE_FORMATS = ("%Y/%m/%d (%a) %H:%M", "%Y/%m/%d %H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d")
@@ -42,7 +43,10 @@ def _iso(dt: datetime) -> str:
 
 
 def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
-    data = json.loads(Path(path or DEFAULT_PATH).read_text())
+    src = Path(path or DEFAULT_PATH)
+    if not src.exists():
+        raise SystemExit(f"LongMemEval_S not found at {src}; download it with\n  curl -L -o {src} {DATA_URL}")
+    data = json.loads(src.read_text())
     out: list[Instance] = []
     for i, q in enumerate(data):
         if limit is not None and i >= limit:

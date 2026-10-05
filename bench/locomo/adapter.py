@@ -16,7 +16,7 @@ from typing import Any
 from bench.common.types import Instance, Question, Session
 
 DATA_URL = "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json"
-DEFAULT_CACHE = Path(os.environ.get("UNIBASE_DATA_DIR", "data")) / "locomo10.json"
+DEFAULT_CACHE = Path(os.environ.get("BENCH_DATA_DIR", "data")) / "locomo10.json"
 
 # Counter-intuitive but verified against the data: cat 1 is multi-hop, cat 4 single-hop.
 CATEGORY_NAMES = {

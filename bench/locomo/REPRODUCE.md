@@ -224,8 +224,8 @@ magnitude higher because the decider is 1–3 LLM round-trips per query; context
 
 The numbers above were produced on engine commit `c9d26ed` with this harness as it stood
 before the move to membase-core's public API. membase-bench commit `e92b7ca` is the last one
-pinned to `c9d26ed`; check it out to rerun them. That engine uses the old names, and the current
-harness does not run against it.
+pinned to `c9d26ed`; check it out to rerun them. That engine is internal (rerunning needs access
+to its source), uses the old names, and the current harness does not run against it.
 
 ```bash
 git checkout e92b7ca && uv sync --extra dev    # pins unibase-supermem @ c9d26ed

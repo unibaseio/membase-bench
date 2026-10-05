@@ -54,7 +54,7 @@ def _size() -> str:
 
 
 def _cache_path(size: str) -> Path:
-    base = Path(os.environ.get("UNIBASE_DATA_DIR", "bench/data"))
+    base = Path(os.environ.get("BENCH_DATA_DIR", "data"))
     return base / f"beam_{size}.parquet"
 
 
