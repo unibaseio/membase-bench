@@ -26,6 +26,8 @@ finds the evidence: on LongMemEval_S the gold sessions were in the context for e
   <img src="assets/context.svg" width="840" alt="Context tokens per question against the full history">
 </p>
 
+About 3× fewer tokens than the full conversation on LoCoMo, and 11× fewer on LongMemEval_S.
+
 ## Quickstart
 
 ```bash
