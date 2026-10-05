@@ -100,6 +100,12 @@ Size of the published runs:
 LongMemEval is the expensive one: every question has its own ~47-session haystack.
 `--stride 5` runs every 5th question (100 of 500) as a cheaper sample.
 
+Latency and context size, one question at a time on the stores a run kept:
+
+```bash
+python -m bench.efficiency locomo --workdir .cache/locomo --out runs/efficiency.json   # or longmemeval, dmr
+```
+
 Also in `bench/locomo/`: `compare.py` (paired per-question flips between two judged runs) and
 `retrieval_metrics.py` (evidence recall and miss attribution; `--bench longmemeval` for LongMemEval).
 
@@ -118,8 +124,8 @@ those numbers, not across benchmarks:
 
 ## Baselines
 
-`baselines/` runs other memory systems on the same questions and sessions, through the loaders
-above: mem0, Memori, LangMem, Zep, Graphiti and a full-context ceiling. Install the extra for the
+`baselines/` runs other memory systems on the same LoCoMo and LongMemEval questions and sessions,
+through the loaders above (DMR has no baseline runners): mem0, Memori, LangMem, Zep, Graphiti and a full-context ceiling. Install the extra for the
 system you run, e.g. `uv sync --extra mem0` (one environment per system keeps their dependencies
 apart), then see [baselines/README.md](baselines/README.md). The same judges grade them, except
 `--retrieval-only` output, which mem0's own judge grades.
@@ -129,6 +135,7 @@ apart), then see [baselines/README.md](baselines/README.md). The same judges gra
 ```
 bench/
   common/        shared types; the OpenAI client of the LoCoMo / LongMemEval judges and the DMR reader
+  efficiency.py  serial latency and context size on kept stores
   locomo/        runner (ours_core.py), Memori-compatible judge, paired comparison, retrieval metrics
   longmemeval/   runner and judge (per-type rules; --membase-judge for a majority vote)
   dmr/           runner and judge under the Zep / MemGPT protocol

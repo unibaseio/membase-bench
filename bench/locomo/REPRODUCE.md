@@ -184,7 +184,10 @@ python -m bench.dmr.judge runs/dmr_full.jsonl --out runs/dmr_full.judged.jsonl
 # Efficiency metrics (serial timing, 2026-09-21)
 
 Final configs; one question at a time so latency is not flattered by concurrency. Search = FAISS +
-FTS + multi-round decider LLM calls. Context tokens = tiktoken over the exact rendered prompt.
+FTS + multi-round decider LLM calls. Context tokens = tiktoken (o200k) over the reader's context.
+Reproduce with `python -m bench.efficiency {locomo,longmemeval,dmr} --workdir <kept stores>` (40 / 30 /
+30 questions spread over the stores by default). For LoCoMo and LongMemEval, answer time is the
+end-to-end time less a separate search; DMR's reader runs outside the engine, so both are direct.
 
 | | LoCoMo (40 q) | LongMemEval (30 q) | DMR (30 q) |
 |---|---|---|---|
