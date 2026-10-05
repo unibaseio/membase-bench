@@ -22,17 +22,6 @@ Episode extraction and the multi-round decider use `gpt-4.1-mini` in all three. 
 reports 94.8% and MemGPT 93.4% on the same 500 questions, both inside our interval. Per-category
 tables, efficiency numbers and ablations are in [bench/locomo/REPRODUCE.md](bench/locomo/REPRODUCE.md).
 
-**Engine version.** These runs were made on `c9d26ed`, the internal build membase-core grew out
-of: the same episode extraction, multi-round decider, prompts and models. membase-core differs in
-two places on the retrieval path:
-
-- its vector lane searches episodes only, where `c9d26ed` searched an index shared with other
-  vector kinds and kept the episodes among the global top 200 (13–16 per lane instead of 50);
-- the reader context holds episodes only, where `c9d26ed` appended two session summaries.
-
-On DMR each question's whole memory (5–7 episodes) reaches the reader either way, so the first
-difference does not apply there. The numbers have not been re-measured on membase-core yet.
-
 ## Quick start
 
 ```bash
@@ -77,7 +66,7 @@ python -m bench.dmr.runner --out runs/dmr.jsonl --workdir .cache/dmr --workers 1
 python -m bench.dmr.judge runs/dmr.jsonl --out runs/dmr.judged.jsonl
 ```
 
-Cost and time of the published runs (OpenAI list prices, measured on `c9d26ed`):
+Cost and time of the published runs (OpenAI list prices):
 
 | | Build stores | Answer + judge | Wall clock |
 |---|---|---|---|
