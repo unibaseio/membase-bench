@@ -29,7 +29,7 @@ in [bench/locomo/REPRODUCE.md](bench/locomo/REPRODUCE.md).
 ## Quick start
 
 ```bash
-uv sync && source .venv/bin/activate    # or: pip install -e .   (Python 3.12 or 3.13; installs membase-core 0.2.2)
+uv sync && source .venv/bin/activate    # or: pip install -e .   (Python 3.12 or 3.13; installs membase-core 0.2.3)
 export OPENAI_API_KEY=...
 export MEMBASE_EPISODE_MODEL=gpt-4.1-mini MEMBASE_DECIDER_MODEL=gpt-4.1-mini MEMBASE_READER_MODEL=gpt-4.1-mini
 
