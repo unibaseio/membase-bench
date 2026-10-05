@@ -22,6 +22,10 @@
 Membase hands the reader a few thousand tokens per question instead of the whole history, and it
 finds the evidence: on LongMemEval_S the gold sessions were in the context for every miss.
 
+<p align="center">
+  <img src="assets/context.svg" width="840" alt="Context tokens per question against the full history">
+</p>
+
 ## Quickstart
 
 ```bash
@@ -47,9 +51,11 @@ Each benchmark keeps the protocol of its best-known published numbers.
 | **DMR** | 500 questions on MemGPT's MSC-Self-Instruct, Zep's harness verbatim | `gpt-4o-mini` | MemGPT's prompt |
 
 Each question runs the same path through [membase-core](https://pypi.org/project/membase-core/)'s
-public API: **ingest** the history into dated episodes → **search** with a multi-round LLM
-decider → **answer** with the reader → **judge** against the gold answer. Episode extraction and
-the decider use `gpt-4.1-mini`.
+public API; episode extraction and the decider use `gpt-4.1-mini`.
+
+<p align="center">
+  <img src="assets/pipeline.svg" width="840" alt="Ingest, search, answer, judge">
+</p>
 
 ## Reproduce
 
@@ -99,48 +105,33 @@ checks the install offline.
 <details>
 <summary><b>Results in detail</b></summary>
 
-| LoCoMo category | n | Accuracy |
-|---|---|---|
-| multi_hop | 282 | 93.6% |
-| open_domain | 96 | 83.3% |
-| single_hop | 841 | 94.6% |
-| temporal | 321 | 91.6% |
-| **all** | **1,540** | **93.12%** |
+<img src="assets/categories.svg" width="840" alt="Accuracy by category and question type">
 
-| LongMemEval_S type | n | Accuracy |
-|---|---|---|
-| knowledge-update | 78 | 97.4% |
-| multi-session | 133 | 88.0% |
-| single-session-assistant | 56 | 85.7% |
-| single-session-preference | 30 | 100% |
-| single-session-user | 70 | 98.6% |
-| temporal-reasoning | 133 | 92.5% |
-| **all** | **500** | **92.60%** (95% CI 90.0–94.6) |
+LoCoMo **93.12%** (1,540 questions) · LongMemEval_S **92.60%** (500, 95% CI 90.0–94.6) · DMR
+**92.20%** (500, 95% CI 89.5–94.2).
 
-DMR: **92.20%** (461/500, 95% CI 89.5–94.2).
+<img src="assets/misses.svg" width="840" alt="Retrieval misses against reader misses">
 
-- **LongMemEval_S** — recall 99.95%; all 37 misses are the reader's. `gpt-5.5` reads because, on a
-  100-question sample, it answered 96 against 77–89 for six other OpenAI readers.
-- **LoCoMo** — a stronger reader does not help: `gpt-5.5` scores 93.18% on the same stores.
-- **DMR** — each memory is only 5–7 episodes, so all of it reaches the reader. With the same
-  `gpt-4o-mini` reader, the [Zep paper](https://arxiv.org/abs/2501.13956) (Table 1) reports 98.2%
-  for Zep and 98.0% for the full conversation in context.
+Retrieval recall is 98.1% on LoCoMo and 99.95% on LongMemEval_S, so most wrong answers had the gold
+session in front of the reader. On DMR each memory is only 5–7 episodes and all of it reaches the
+reader; with the same `gpt-4o-mini` reader the [Zep paper](https://arxiv.org/abs/2501.13956)
+(Table 1) reports 98.2% for Zep and 98.0% for the full conversation in context.
+
+<img src="assets/readers.svg" width="840" alt="Accuracy by reader on a LongMemEval_S sample">
+
+Hence `gpt-5.5` reads LongMemEval_S. On LoCoMo a stronger reader does not help: `gpt-5.5` scores
+93.18% on the same stores.
 
 </details>
 
 <details>
-<summary><b>Latency and context size</b></summary>
+<summary><b>Latency</b></summary>
 
-One question at a time; search includes the decider's LLM calls.
+<img src="assets/latency.svg" width="840" alt="Search and total latency">
 
-| | LoCoMo | LongMemEval_S | DMR |
-|---|---|---|---|
-| search p50 / p95 | 1.67 s / 7.02 s | 2.53 s / 6.11 s | 1.13 s / 1.71 s |
-| total p50 / p95 | 8.30 s / 18.0 s | 14.7 s / 30.2 s | 3.21 s / 6.34 s |
-| context tokens per question | 6,562 | 8,970 | 1,602 |
-
-`python -m bench.efficiency {locomo,longmemeval,dmr} --workdir <kept stores>` measures them on your
-own run.
+Search includes the multi-round decider's LLM calls.
+`python -m bench.efficiency {locomo,longmemeval,dmr} --workdir <kept stores>` measures latency and
+context size on your own run.
 
 </details>
 
@@ -164,4 +155,4 @@ LongMemEval_S questions, graded by the same judges — see [baselines/](baseline
 
 MIT. The harness drives the proprietary membase-core engine through its public API only; judges and
 readers call OpenAI directly. Prompts used verbatim from Memori, Zep and MemGPT are listed in
-[NOTICE](NOTICE).
+[NOTICE](NOTICE). The figures are drawn by `scripts/figures.py` from the published runs.
