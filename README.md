@@ -113,35 +113,58 @@ checks the install offline.
 </details>
 
 <details>
-<summary><b>Results in detail</b></summary>
-
-<img src="assets/categories.svg" width="840" alt="Accuracy by category and question type">
+<summary><b>Accuracy in detail</b></summary>
 
 LoCoMo **93.12%** (1,540 questions) · LongMemEval_S **92.60%** (500, 95% CI 90.0–94.6) · DMR
 **92.20%** (500, 95% CI 89.5–94.2).
 
-<img src="assets/misses.svg" width="840" alt="Retrieval misses against reader misses">
+<img src="assets/categories.svg" width="840" alt="Accuracy by category and question type">
 
-Retrieval recall is 98.1% on LoCoMo and 99.95% on LongMemEval_S, so most wrong answers had the gold
-session in front of the reader. On DMR each memory is only 5–7 episodes and all of it reaches the
-reader; with the same `gpt-4o-mini` reader the [Zep paper](https://arxiv.org/abs/2501.13956)
-(Table 1) reports 98.2% for Zep and 98.0% for the full conversation in context.
+<img src="assets/conversations.svg" width="840" alt="LoCoMo accuracy per conversation">
 
-<img src="assets/readers.svg" width="840" alt="Accuracy by reader on a LongMemEval_S sample">
+<img src="assets/evidence.svg" width="840" alt="LoCoMo accuracy by evidence spread">
 
-Hence `gpt-5.5` reads LongMemEval_S. On LoCoMo a stronger reader does not help: `gpt-5.5` scores
-93.18% on the same stores.
+The score holds across all ten LoCoMo conversations (89.9–95.1%), and questions whose evidence
+spans three or more sessions do as well as single-session ones.
 
 </details>
 
 <details>
-<summary><b>Latency</b></summary>
+<summary><b>Retrieval or reader?</b></summary>
+
+<img src="assets/recall.svg" width="840" alt="Retrieval recall by category">
+
+<img src="assets/misses.svg" width="840" alt="Retrieval misses against reader misses">
+
+Retrieval puts the gold session in front of the reader for 98.1% of LoCoMo and 99.95% of
+LongMemEval_S evidence, so most wrong answers are the reader's. On DMR each memory is only 5–7
+episodes and all of it reaches the reader; with the same `gpt-4o-mini` reader the
+[Zep paper](https://arxiv.org/abs/2501.13956) (Table 1) reports 98.2% for Zep and 98.0% for the
+full conversation in context.
+
+<img src="assets/readers.svg" width="840" alt="Accuracy by reader on a LongMemEval_S sample">
+
+<img src="assets/heatmap.svg" width="840" alt="Accuracy by reader and question type">
+
+On LongMemEval_S the reader matters, most on multi-session and temporal questions, hence `gpt-5.5`.
+
+<img src="assets/swap.svg" width="840" alt="LoCoMo accuracy with two readers">
+
+On LoCoMo it does not: `gpt-5.5` scores 93.18% on the same stores, at most 1.1 points from
+`gpt-4.1-mini` in any category.
+
+</details>
+
+<details>
+<summary><b>Latency and context size</b></summary>
 
 <img src="assets/latency.svg" width="840" alt="Search and total latency">
 
-Search includes the multi-round decider's LLM calls.
-`python -m bench.efficiency {locomo,longmemeval,dmr} --workdir <kept stores>` measures latency and
-context size on your own run.
+<img src="assets/spread.svg" width="840" alt="Context tokens per question">
+
+Search includes the multi-round decider's LLM calls. The context stays bounded however long the
+history is. `python -m bench.efficiency {locomo,longmemeval,dmr} --workdir <kept stores>` measures
+both on your own run.
 
 </details>
 

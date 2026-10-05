@@ -30,6 +30,37 @@ READERS = [("gpt-5.4-mini", 77), ("gpt-4.1-mini", 83), ("gpt-4.1", 86), ("gpt-5"
 LATENCY = [("LoCoMo", 1.67, 7.02, 8.30, 18.0), ("LongMemEval_S", 2.53, 6.11, 14.7, 30.2),
            ("DMR", 1.13, 1.71, 3.21, 6.34)]
 
+# Share of gold evidence sessions among the retrieved episodes' sessions.
+RECALL = [("LoCoMo · single_hop", 99.4), ("LoCoMo · temporal", 98.4), ("LoCoMo · multi_hop", 95.8),
+          ("LoCoMo · open_domain", 92.3), ("LongMemEval_S · all types", 99.95)]
+
+# LoCoMo, same stores, reader swapped: (gpt-4.1-mini, gpt-5.5).
+SWAP = [("single_hop", 94.6, 95.0), ("multi_hop", 93.6, 93.3), ("temporal", 91.6, 91.0),
+        ("open_domain", 83.3, 84.4)]
+
+# LoCoMo accuracy per conversation, and by how many sessions the gold evidence spans.
+CONVERSATIONS = [("conv-26", 94.1), ("conv-30", 95.1), ("conv-41", 92.1), ("conv-42", 89.9),
+                 ("conv-43", 93.3), ("conv-44", 93.5), ("conv-47", 94.0), ("conv-48", 93.7),
+                 ("conv-49", 92.3), ("conv-50", 94.9)]
+EVIDENCE = [("1 session (1,207 q)", 93.5), ("2 sessions (203 q)", 90.1), ("3+ sessions (126 q)", 95.2)]
+
+# LongMemEval_S 100-question sample: accuracy by reader and question type.
+TYPES = ["single-session-user", "single-session-preference", "knowledge-update", "temporal-reasoning",
+         "multi-session", "single-session-assistant"]
+HEATMAP = {
+    "gpt-5.4-mini": [100.0, 100.0, 86.7, 74.1, 63.0, 63.6],
+    "gpt-4.1-mini": [100.0, 100.0, 86.7, 81.5, 70.4, 81.8],
+    "gpt-4.1": [92.9, 83.3, 100.0, 88.9, 74.1, 81.8],
+    "gpt-5": [100.0, 100.0, 93.3, 88.9, 77.8, 72.7],
+    "gpt-5-mini": [100.0, 83.3, 100.0, 88.9, 74.1, 81.8],
+    "gpt-5.4": [100.0, 83.3, 93.3, 88.9, 88.9, 72.7],
+    "gpt-5.5": [100.0, 100.0, 100.0, 100.0, 92.6, 81.8],
+}
+
+# Context tokens per question over the efficiency sample: (min, p25, median, p75, max).
+SPREAD = [("LoCoMo", 6214, 6463, 6520, 6642, 7208), ("LongMemEval_S", 3022, 8500, 9628, 9855, 11171),
+          ("DMR", 1458, 1547, 1612, 1658, 1776)]
+
 
 def _svg(width: int, height: int, body: str, label: str) -> str:
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
@@ -163,8 +194,91 @@ def latency() -> str:
     return _svg(width, 62 + len(LATENCY) * row, "".join(body), "Search and total latency")
 
 
+def recall() -> str:
+    return _hbars("Retrieval recall: gold evidence sessions found among the retrieved episodes",
+                  RECALL, 50, 210, "{:g}%")
+
+
+def swap() -> str:
+    left, bar, row, width = 130, 16, 46, 840
+    span = width - left - 70
+    x = lambda v: span * (v - 50) / 50  # noqa: E731
+    body = ['<text class="t" x="0" y="18">LoCoMo by category, same memory, reader swapped</text>',
+            _legend(0, 40, [(LIGHT, "gpt-4.1-mini"), (BLUE, "gpt-5.5")])]
+    for i, (name, a, b) in enumerate(SWAP):
+        y = 56 + i * row
+        body.append(f'<text class="s" x="0" y="{y + 16}">{name}</text>')
+        for j, (val, color) in enumerate(((a, LIGHT), (b, BLUE))):
+            yy = y + j * (bar + 3)
+            body.append(f'<rect x="{left}" y="{yy}" width="{x(val):.1f}" height="{bar}" rx="4" fill="{color}"/>'
+                        f'<text class="s" x="{left + x(val) + 8:.1f}" y="{yy + 13}">{val:.1f}%</text>')
+    return _svg(width, 60 + len(SWAP) * row, "".join(body), "LoCoMo accuracy with two readers")
+
+
+def conversations() -> str:
+    width, height, top, base = 840, 230, 40, 190
+    n = len(CONVERSATIONS)
+    slot = width / n
+    y = lambda v: base - (base - top) * (v - 80) / 20  # noqa: E731
+    body = ['<text class="t" x="0" y="18">LoCoMo accuracy per conversation (axis from 80%)</text>',
+            f'<line x1="0" y1="{y(93.12):.1f}" x2="{width}" y2="{y(93.12):.1f}" stroke="{GREY}" '
+            f'stroke-dasharray="4 4"/><text class="s" x="{width}" y="18" '
+            f'text-anchor="end">dashed: all 1,540 questions, 93.1%</text>']
+    for i, (name, val) in enumerate(CONVERSATIONS):
+        cx = i * slot + slot / 2
+        body.append(f'<rect x="{cx - 24:.1f}" y="{y(val):.1f}" width="48" height="{base - y(val):.1f}" rx="5" fill="{BLUE}"/>'
+                    f'<text class="v" x="{cx:.1f}" y="{y(val) - 8:.1f}" text-anchor="middle">{val:.1f}</text>'
+                    f'<text class="s" x="{cx:.1f}" y="{base + 20}" text-anchor="middle">{name}</text>')
+    return _svg(width, height, "".join(body), "LoCoMo accuracy per conversation")
+
+
+def evidence() -> str:
+    return _hbars("LoCoMo accuracy by how many sessions the gold evidence spans", EVIDENCE, 50, 210,
+                  "{:.1f}%")
+
+
+def heatmap() -> str:
+    left, top, cw, ch, width = 120, 92, 118, 30, 840
+    body = ['<text class="t" x="0" y="18">LongMemEval_S sample: accuracy by reader and question type (%)</text>']
+    for j, t in enumerate(TYPES):
+        cx = left + j * cw + cw / 2
+        a, b = t.rsplit("-", 1)
+        body.append(f'<text class="s" x="{cx:.0f}" y="{top - 26}" text-anchor="middle">{a}</text>'
+                    f'<text class="s" x="{cx:.0f}" y="{top - 10}" text-anchor="middle">{b}</text>')
+    for i, (reader, vals) in enumerate(HEATMAP.items()):
+        y = top + i * ch
+        body.append(f'<text class="v" x="0" y="{y + 20}">{reader}</text>')
+        for j, v in enumerate(vals):
+            alpha = 0.12 + 0.88 * max(0.0, (v - 60) / 40)
+            ink = "#FFFFFF" if alpha > 0.55 else GREY
+            body.append(f'<rect x="{left + j * cw + 2}" y="{y + 2}" width="{cw - 4}" height="{ch - 4}" rx="4" '
+                        f'fill="{BLUE}" fill-opacity="{alpha:.2f}"/>'
+                        f'<text x="{left + j * cw + cw / 2:.0f}" y="{y + 20}" text-anchor="middle" '
+                        f'style="font-size:13px;font-weight:600;fill:{ink}">{v:.0f}</text>')
+    return _svg(width, top + len(HEATMAP) * ch + 8, "".join(body), "Accuracy by reader and question type")
+
+
+def spread() -> str:
+    left, row, width = 130, 44, 840
+    scale = (width - left - 40) / 15_000
+    x = lambda v: left + v * scale  # noqa: E731
+    body = ['<text class="t" x="0" y="18">Context tokens per question: range, middle half and median</text>']
+    for i, (name, lo, q1, med, q3, hi) in enumerate(SPREAD):
+        y = 44 + i * row
+        body.append(f'<text class="v" x="0" y="{y + 15}">{name}</text>'
+                    f'<line x1="{x(lo):.1f}" y1="{y + 10}" x2="{x(hi):.1f}" y2="{y + 10}" stroke="{LIGHT}" stroke-width="2"/>'
+                    f'<rect x="{x(q1):.1f}" y="{y}" width="{max(3.0, x(q3) - x(q1)):.1f}" height="20" rx="4" fill="{BLUE}"/>'
+                    f'<line x1="{x(med):.1f}" y1="{y - 3}" x2="{x(med):.1f}" y2="{y + 23}" stroke="#FFFFFF" stroke-width="2"/>'
+                    f'<text class="s" x="{x(hi) + 8:.1f}" y="{y + 15}">{lo:,}–{hi:,}, median {med:,}</text>')
+    for tick in (0, 5_000, 10_000, 15_000):
+        body.append(f'<text class="s" x="{x(tick):.1f}" y="{44 + 3 * row + 4}" text-anchor="middle">{tick // 1000}k</text>')
+    return _svg(width, 52 + 3 * row + 4, "".join(body), "Context tokens per question")
+
+
 FIGURES = {"pipeline": pipeline, "context": context, "categories": categories,
-           "misses": misses, "readers": readers, "latency": latency}
+           "misses": misses, "readers": readers, "latency": latency, "recall": recall,
+           "swap": swap, "conversations": conversations, "evidence": evidence, "heatmap": heatmap,
+           "spread": spread}
 
 
 if __name__ == "__main__":
