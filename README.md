@@ -63,6 +63,10 @@ Each benchmark keeps the protocol of its best-known published numbers.
 | **LongMemEval_S** | 500 questions, each over its own ~47-session chat history | `gpt-5.5` | Memori's prompt + LongMemEval's per-type rules |
 | **DMR** | 500 questions on MemGPT's MSC-Self-Instruct, Zep's harness verbatim | `gpt-4o-mini` | MemGPT's prompt |
 
+<p align="center">
+  <img src="assets/datasets.svg" width="840" alt="Sessions and history length per benchmark">
+</p>
+
 Each question runs the same path through [membase-core](https://pypi.org/project/membase-core/)'s
 public API; episode extraction and the decider use `gpt-4.1-mini`.
 
@@ -291,6 +295,10 @@ non-commercial. To cite this harness:
 </details>
 
 ## Baselines
+
+<p align="center">
+  <img src="assets/fairness.svg" width="840" alt="Shared loaders, competing systems, shared judges">
+</p>
 
 mem0, Memori, LangMem, Zep, Graphiti and a full-context ceiling, on the same LoCoMo and
 LongMemEval_S questions, graded by the same judges — see [baselines/](baselines/README.md).

@@ -275,10 +275,61 @@ def spread() -> str:
     return _svg(width, 52 + 3 * row + 4, "".join(body), "Context tokens per question")
 
 
+def datasets() -> str:
+    rows = [("LoCoMo", "10 conversations · 1,540 questions", "19–32 sessions per conversation (27 on average)",
+             "~20k-token history", 27, 20),
+            ("LongMemEval_S", "500 questions, each with its own history", "39–66 sessions per question (50 on average)",
+             "~103k-token history", 50, 103),
+            ("DMR", "500 questions, each with its own history", "5 sessions per question",
+             "~1.6k-token history", 5, 1.6)]
+    width, row = 840, 78
+    body = ['<text class="t" x="0" y="18">What each benchmark asks the memory to hold</text>']
+    for i, (name, what, sess, hist, n, k) in enumerate(rows):
+        y = 34 + i * row
+        body.append(f'<text class="v" x="0" y="{y + 16}" style="font-size:15px;fill:{BLUE}">{name}</text>'
+                    f'<text class="s" x="0" y="{y + 36}">{what}</text>'
+                    f'<text class="s" x="0" y="{y + 54}">{sess}</text>')
+        for j in range(n):
+            body.append(f'<rect x="{360 + j * 7}" y="{y + 6}" width="5" height="22" rx="1.5" fill="{BLUE}" opacity=".85"/>')
+        bw = 270 * k / 103
+        body.append(f'<rect x="360" y="{y + 36}" width="{max(bw, 3):.1f}" height="12" rx="3" fill="{LIGHT}"/>'
+                    f'<text class="s" x="{360 + max(bw, 3) + 8:.1f}" y="{y + 46}">{hist}</text>')
+    body.append(f'<text class="s" x="360" y="{34 + 3 * row}">each bar one session</text>')
+    return _svg(width, 40 + 3 * row, "".join(body), "Sessions and history length per benchmark")
+
+
+def fairness() -> str:
+    w = 840
+    body = ['<text class="t" x="0" y="18">Every system answers the same questions and is graded the same way</text>']
+    def box(x, y, bw, bh, title, sub="", solid=False):
+        fill, ink = (BLUE, "#FFFFFF") if solid else ("#E3E8FF", "#2A3FBF")
+        out = f'<rect x="{x}" y="{y}" width="{bw}" height="{bh}" rx="12" fill="{fill}"/>'
+        out += (f'<text x="{x + bw / 2}" y="{y + (bh / 2 + 5 if not sub else 26)}" text-anchor="middle" '
+                f'style="font-size:15px;font-weight:700;fill:{ink}">{title}</text>')
+        if sub:
+            out += f'<text x="{x + bw / 2}" y="{y + 46}" text-anchor="middle" style="font-size:12.5px;fill:{ink}">{sub}</text>'
+        return out
+    def arrow(x1, y1, x2, y2):
+        return (f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{GREY}" stroke-width="1.6"/>'
+                f'<path d="M{x2} {y2} l-8 -4 l0 8 z" fill="{GREY}"/>')
+    body.append(box(0, 70, 200, 70, "bench loaders", "same questions, same sessions", solid=True))
+    systems = ["Membase", "mem0", "Memori", "LangMem", "Zep", "Graphiti", "full context"]
+    for i, name in enumerate(systems):
+        y = 34 + i * 22
+        body.append(f'<rect x="300" y="{y}" width="200" height="18" rx="5" fill="{"#3E61FF" if i == 0 else "#E3E8FF"}"/>'
+                    f'<text x="400" y="{y + 13}" text-anchor="middle" style="font-size:12.5px;font-weight:600;'
+                    f'fill:{"#FFFFFF" if i == 0 else "#2A3FBF"}">{name}</text>')
+    body.append(arrow(202, 105, 294, 105))
+    body.append(box(600, 70, 240, 70, "bench judges", "one per benchmark, gpt-4o-mini", solid=True))
+    body.append(arrow(502, 105, 594, 105))
+    body.append(f'<text class="s" x="300" y="{34 + 7 * 22 + 12}">hypotheses.jsonl: question_id, hypothesis, category, gold</text>')
+    return _svg(w, 34 + 7 * 22 + 20, "".join(body), "Shared loaders, competing systems, shared judges")
+
+
 FIGURES = {"pipeline": pipeline, "context": context, "categories": categories,
            "misses": misses, "readers": readers, "latency": latency, "recall": recall,
            "swap": swap, "conversations": conversations, "evidence": evidence, "heatmap": heatmap,
-           "spread": spread}
+           "spread": spread, "datasets": datasets, "fairness": fairness}
 
 
 if __name__ == "__main__":
