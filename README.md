@@ -57,6 +57,16 @@ public API; episode extraction and the decider use `gpt-4.1-mini`.
   <img src="assets/pipeline.svg" width="840" alt="Ingest, search, answer, judge">
 </p>
 
+**One question, end to end** (LoCoMo `conv-26-q3`, multi-hop):
+
+| | |
+|---|---|
+| Question | *What did Caroline research?* |
+| Gold answer | Adoption agencies |
+| Search | 20 episodes out of the conversation's 19 sessions; the one from session 2, where the gold evidence (`D2:8`) sits, ranks 2nd |
+| Answer | "Caroline researched adoption agencies, particularly those that support LGBTQ+ individuals, as part of her dream to provide a loving home to children in need. …" |
+| Judge | CORRECT |
+
 ## Reproduce
 
 ```bash
@@ -142,6 +152,104 @@ context size on your own run.
 python -m bench.locomo.compare runs/a.judged.jsonl runs/b.judged.jsonl   # paired per-question flips
 python -m bench.retrieval_metrics runs/locomo.judged.jsonl                # evidence recall; retrieval vs reader misses
 python -m bench.longmemeval.judge runs/lme.jsonl --out x.jsonl --membase-judge --judge-runs 3   # majority of three judges
+```
+
+</details>
+
+<details>
+<summary><b>Memory size and ingest cost</b></summary>
+
+| | LoCoMo | LongMemEval_S | DMR |
+|---|---|---|---|
+| episodes in the store | 32 per conversation | 54 per question | 5 per question |
+| store size | ~11.5k tokens per conversation | ~28.7k tokens per question | ~1.7k tokens per question |
+| ingest LLM input | 176k tokens per conversation (1.8M in all) | 449k tokens per question (225M in all) | 25k tokens per question (12.7M in all) |
+
+Ingest is the expensive step and runs once: `--workdir` keeps the stores, and every later
+re-answer or judge pass reuses them.
+
+</details>
+
+<details>
+<summary><b>Output files</b></summary>
+
+Runners write one JSON object per question:
+
+| Field | |
+|---|---|
+| `question_id`, `category` | from the dataset (`conv-26-q3`, `multi_hop`) |
+| `hypothesis` | the answer; `ERROR: …` when the question failed, `[NO_CONTEXT]` when LongMemEval retrieval was empty |
+| `gold` | the dataset's answer |
+| `retrieved_sessions`, `retrieved_observations` | the sessions of the episodes handed to the reader, and how many episodes |
+
+Judges copy each row and add `correct` and, by benchmark, `label` (`CORRECT` / `WRONG`; LoCoMo and
+LongMemEval), `question`, `judge_response` and `f1` (LoCoMo token F1), or `excluded` (an unreadable
+verdict, left out of the denominator; LongMemEval and DMR).
+
+</details>
+
+<details>
+<summary><b>Add your own memory system</b></summary>
+
+A system is a runner that writes the same rows; the judges do the rest.
+
+1. Load the questions with `baselines.common.dataset.load()` (`BENCH_DATASET=locomo` or
+   `longmemeval`). Each instance has `sessions` (each with `session_date` and `turns` of `role`,
+   `speaker`, `content`) and a `question` (`question`, `question_date`, `answer`, `category`).
+2. Ingest the sessions into your system, then answer each question.
+3. Write `{question_id, hypothesis, category, gold}` per question, as above.
+4. Grade with `python -m bench.locomo.memori_official_eval` (or `bench.longmemeval.judge`).
+
+[`baselines/locomo/full_context_runner.py`](baselines/locomo/full_context_runner.py) is the
+smallest working example.
+
+</details>
+
+<details>
+<summary><b>FAQ</b></summary>
+
+**Why a lenient judge on LoCoMo?** Memori's CORRECT/WRONG prompt is the one behind the published
+LoCoMo numbers this is compared with. A stricter judge lowers every system; grade all systems with
+one judge before comparing them.
+
+**Why drop LoCoMo category 5?** Its adversarial questions have no answer and need a refusal-aware
+judge; published LoCoMo figures leave it out too. `--include-adversarial` keeps it.
+
+**Why the original LongMemEval_S and not `longmemeval-cleaned`?** The published 92.6 was measured on
+the original release; the cleaned release is different data, so scores on it are not comparable.
+
+**Can I use other model providers?** The engine also runs on Anthropic, Ollama or any
+OpenAI-compatible endpoint (`MEMBASE_LLM_PROVIDER`), but this harness's readers, judges and the
+engine's embeddings call OpenAI; `OPENAI_BASE_URL` points them at an OpenAI-compatible endpoint.
+
+**Why is search slower than a plain vector store?** The multi-round decider is 1–3 LLM calls per
+question; it is what keeps the context small and the evidence in it.
+
+**How do I compare two runs?** `bench.locomo.compare` pairs them question by question: it reports
+which questions flipped either way, which a single accuracy difference hides, and each run's
+accuracy with a Wilson interval.
+
+</details>
+
+<details>
+<summary><b>Datasets and citation</b></summary>
+
+| Dataset | Paper | License |
+|---|---|---|
+| [LoCoMo](https://github.com/snap-research/locomo) | [Evaluating Very Long-Term Conversational Memory of LLM Agents](https://arxiv.org/abs/2402.17753) | CC BY-NC 4.0 |
+| [LongMemEval](https://huggingface.co/datasets/xiaowu0162/longmemeval) | [LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory](https://arxiv.org/abs/2410.10813) | MIT |
+| [MSC-Self-Instruct](https://huggingface.co/datasets/MemGPT/MSC-Self-Instruct) (DMR) | [MemGPT: Towards LLMs as Operating Systems](https://arxiv.org/abs/2310.08560); protocol from [Zep](https://arxiv.org/abs/2501.13956) | Apache-2.0 |
+
+The datasets are downloaded from their sources, not shipped here; LoCoMo's license is
+non-commercial. To cite this harness:
+
+```bibtex
+@misc{membase-bench,
+  title        = {membase-bench: Long-term memory benchmarks for Membase},
+  author       = {{Unibase}},
+  year         = {2026},
+  howpublished = {\url{https://github.com/unibaseio/membase-bench}}
+}
 ```
 
 </details>
