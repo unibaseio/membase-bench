@@ -3,8 +3,8 @@
 Benchmark harnesses for [membase-core](https://pypi.org/project/membase-core/), the
 Membase memory engine: **LoCoMo**, **LongMemEval_S** and **DMR**, plus competitor baselines on
 the same data. The harness drives the engine through its public API only (`CoreMemoryEngine`
-and the `MEMBASE_*` settings); judges and baselines call OpenAI through their own client
-(`bench/common/llm.py`), never through the engine under test.
+and the `MEMBASE_*` settings). Judges, the DMR reader and the baselines call OpenAI directly,
+never through the engine under test.
 
 The harness is open source (MIT). membase-core itself is proprietary and is installed from PyPI as
 compiled wheels (CPython 3.12 / 3.13 on Linux, macOS and Windows); its license allows running
@@ -15,17 +15,19 @@ these benchmarks.
 | Benchmark | Questions | Accuracy | Reader | Judge (`gpt-4o-mini`) |
 |---|---|---|---|---|
 | LoCoMo | 1,540 (categories 1–4) | **93.12%** (run-to-run noise ≈ 0.9pp) | `gpt-4.1-mini` | Memori's CORRECT/WRONG prompt |
-| LongMemEval_S | 500 | **92.60%** (95% CI 90.0–94.6) | `gpt-5.5` | official per-type rules |
+| LongMemEval_S | 500 | **92.60%** (95% CI 90.0–94.6) | `gpt-5.5` | Memori's prompt + LongMemEval's per-type rules |
 | DMR | 500 | **92.20%** (95% CI 89.5–94.2) | `gpt-4o-mini` | MemGPT's prompt (Zep protocol) |
 
-Episode extraction and the multi-round decider use `gpt-4.1-mini` in all three. On DMR, Zep
-reports 94.8% and MemGPT 93.4% on the same 500 questions, both inside our interval. Per-category
-tables, efficiency numbers and ablations are in [bench/locomo/REPRODUCE.md](bench/locomo/REPRODUCE.md).
+Episode extraction and the multi-round decider use `gpt-4.1-mini` in all three. For DMR, the Zep
+paper ([arXiv:2501.13956](https://arxiv.org/abs/2501.13956), Table 1) reports, with the same
+`gpt-4o-mini` reader, 98.2% for Zep and 98.0% for the full conversation in context (with
+`gpt-4-turbo`: Zep 94.8%, MemGPT 93.4%). Per-category tables, efficiency numbers and ablations are
+in [bench/locomo/REPRODUCE.md](bench/locomo/REPRODUCE.md).
 
 ## Quick start
 
 ```bash
-uv sync                      # or: pip install -e .   (Python 3.12+; installs membase-core 0.2.2)
+uv sync && source .venv/bin/activate    # or: pip install -e .   (Python 3.12 or 3.13; installs membase-core 0.2.2)
 export OPENAI_API_KEY=...
 export MEMBASE_EPISODE_MODEL=gpt-4.1-mini MEMBASE_DECIDER_MODEL=gpt-4.1-mini MEMBASE_READER_MODEL=gpt-4.1-mini
 
@@ -33,8 +35,10 @@ python -m bench.locomo.ours_core --limit 1 --out runs/smoke.jsonl --workdir .cac
 python -m bench.locomo.memori_official_eval runs/smoke.jsonl --out runs/smoke.judged.jsonl
 ```
 
-This ingests one LoCoMo conversation and answers one question: a few minutes and a few cents.
-Every runner takes `--limit N`.
+This ingests one LoCoMo conversation and answers one question: a few minutes and well under a
+dollar. Every runner takes `--limit N`. On Linux without a GPU,
+`uv venv && uv pip install --torch-backend cpu -e .` avoids the multi-GB CUDA build of torch that
+the engine's cross-encoder pulls in.
 
 ## Datasets
 
@@ -52,8 +56,8 @@ LongMemEval_S is the original release, not the later `longmemeval-cleaned` one.
 
 The engine reads its models from `MEMBASE_*` settings (as in the quick start; set
 `MEMBASE_READER_MODEL=gpt-5.5` for LongMemEval). The runners set the per-benchmark answer prompt,
-date line and episode owner themselves. `--workdir` keeps the engine stores, so a rerun with
-`--resume` or a second judge pass skips ingestion.
+date line and episode owner themselves. `--workdir` keeps the engine stores, so a rerun (to
+re-answer, or with `--resume` after an interruption) skips ingestion.
 
 ```bash
 python -m bench.locomo.ours_core --out runs/locomo.jsonl --workdir .cache/locomo --workers 4 --question-workers 8 --resume
@@ -66,13 +70,13 @@ python -m bench.dmr.runner --out runs/dmr.jsonl --workdir .cache/dmr --workers 1
 python -m bench.dmr.judge runs/dmr.jsonl --out runs/dmr.judged.jsonl
 ```
 
-Cost and time of the published runs (OpenAI list prices):
+Size of the published runs:
 
-| | Build stores | Answer + judge | Wall clock |
-|---|---|---|---|
-| LoCoMo (10 conversations) | ≈ $5 | ≈ $8 | ≈ 20 min + 15 min |
-| LongMemEval_S (500 stores) | ≈ $0.50 per question | ≈ $0.02 per question | ≈ 1 question/min |
-| DMR (500 stores) | ≈ $8 in total | | ≈ 32 min |
+| | Ingest (LLM input tokens) | Wall clock |
+|---|---|---|
+| LoCoMo (10 conversations) | 1.8M | ≈ 20 min to build, ≈ 15 min to answer and judge |
+| LongMemEval_S (500 stores) | 225M (449k per question) | ≈ 1 question/min |
+| DMR (500 stores) | 12.7M | ≈ 32 min |
 
 LongMemEval is the expensive one: every question has its own ~47-session haystack.
 `--stride 5` runs every 5th question (100 of 500) as a cheaper sample.
@@ -86,8 +90,10 @@ Each benchmark is graded the way its best-known published numbers were, so resul
 those numbers, not across benchmarks:
 
 - **LoCoMo**: Memori's notebook judge, a lenient CORRECT/WRONG prompt. Category 5 (adversarial)
-  is dropped, as in every published LoCoMo figure.
-- **LongMemEval_S**: the official per-question-type rules; `--membase-judge` grades by majority vote.
+  is dropped, as in the mem0, Zep and Memori LoCoMo figures.
+- **LongMemEval_S**: Memori's CORRECT/WRONG prompt with LongMemEval's per-question-type rules
+  (temporal off-by-one, knowledge update, preference rubric, abstention) prepended.
+  `--membase-judge --judge-runs 3` grades each answer by a majority of three judge calls.
 - **DMR**: Zep's published harness with MemGPT's judge prompt; answer and judge `gpt-4o-mini` at
   temperature 0.
 
@@ -95,20 +101,20 @@ those numbers, not across benchmarks:
 
 `baselines/` runs other memory systems on the same questions and sessions, through the loaders
 above: mem0, Memori, LangMem, Zep, Graphiti and a full-context ceiling. Install the extra for the
-system you run, e.g. `uv pip install -r pyproject.toml --extra mem0` (one at a time: their
-dependency trees clash), then see [baselines/README.md](baselines/README.md). The same judges
-grade them.
+system you run, e.g. `uv sync --extra mem0` (one environment per system keeps their dependencies
+apart), then see [baselines/README.md](baselines/README.md). The same judges grade them, except
+`--retrieval-only` output, which mem0's own judge grades.
 
 ## Layout
 
 ```
 bench/
-  common/        shared types and the OpenAI client used by judges and baselines
+  common/        shared types; the OpenAI client of the LoCoMo / LongMemEval judges and the DMR reader
   locomo/        runner (ours_core.py), Memori-compatible judge, paired comparison, retrieval metrics
-  longmemeval/   runner and judge (official per-type rules; --membase-judge for majority vote)
+  longmemeval/   runner and judge (per-type rules; --membase-judge for a majority vote)
   dmr/           runner and judge under the Zep / MemGPT protocol
 baselines/       competitor runners (mem0, Memori, LangMem, Zep, Graphiti, full context)
-tests/           offline tests, no network: uv sync --extra dev && pytest
+tests/           offline tests, no network: uv sync --extra dev && uv run pytest
 ```
 
 ## License

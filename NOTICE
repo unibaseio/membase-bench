@@ -4,6 +4,13 @@ Copyright (c) 2026 membase-bench contributors
 MIT-licensed (see LICENSE), except:
 
 baselines/locomo/mem0_eval/
-    Evaluation prompts and scaffold following mem0's LoCoMo evaluation (Apache License 2.0,
-    see baselines/locomo/mem0_eval/LICENSE). Changed: wired to this harness's data loaders and
-    model configuration.
+    Evaluation prompts and scaffold derived from mem0's LoCoMo evaluation
+    (https://github.com/mem0ai/mem0, Apache License 2.0, see baselines/locomo/mem0_eval/LICENSE).
+    Changed: wired to this harness's model configuration and OpenAI client.
+
+Evaluation prompts used verbatim from published harnesses:
+    bench/locomo/memori_official_eval.py   Memori's LoCoMo notebook judge prompt
+                                           (https://github.com/GibsonAI/memori)
+    bench/dmr/runner.py, bench/dmr/judge.py
+                                           Zep's DMR answer prompt and MemGPT's judge prompt
+                                           (https://github.com/getzep/zep-papers)

@@ -5,7 +5,8 @@ and a full-context ceiling. The runners load questions through `bench/`'s own lo
 (`BENCH_DATASET=locomo`, the default, or `longmemeval`), so every system answers the same
 questions over the same sessions; LoCoMo category 5 is dropped, as for Membase. Every runner
 writes a `hypotheses.jsonl` with the same schema (`question_id`, `hypothesis`, `category`,
-`gold`), so `bench/`'s judge grades every system.
+`gold`), so `bench/`'s judge grades every system. For `BENCH_DATASET=longmemeval`, grade with
+`python -m bench.longmemeval.judge` (`report.py` is LoCoMo-only).
 
 Membase itself runs through `bench/locomo/ours_core.py` (see the top-level README).
 
@@ -27,17 +28,19 @@ baselines/
 
 ## Setup
 
-Each system has its own extra, because their dependency trees clash; use one environment per
-system:
+Each system has its own extra; one environment per system keeps their dependencies apart:
 
 ```bash
-uv pip install -r pyproject.toml --extra mem0      # or memori, langmem, zep, graphiti
+uv sync --extra mem0                               # or memori, langmem, zep, graphiti
 export OPENAI_API_KEY=...
 export MEMBASE_BENCH_MODEL=gpt-4o                  # the runners' default reader model
 ```
 
-The judge and readers call OpenAI through `bench/common/llm.py` (temperature 0, retries on
-transient errors); `OPENAI_BASE_URL` points them at an OpenAI-compatible endpoint.
+The baseline readers call OpenAI directly (`chat.completions.create`, max_tokens 128, the
+provider's default temperature); the judge and mem0_eval go through `bench/common/llm.py`
+(temperature 0, retries on transient errors). `OPENAI_BASE_URL` points them at an
+OpenAI-compatible endpoint. Each system's own extraction model is fixed in its runner
+(`gpt-4o-mini`; Graphiti `gpt-4o`); `--reader-model` sets only the answering model.
 
 ## Run
 
@@ -62,6 +65,8 @@ runner then writes the retrieved memories instead of an answer, to be read and g
 - **LangMem** extracts with `create_memory_store_manager` into an in-process `InMemoryStore`
   per conversation.
 - **Zep** is cloud-only: one session per conversation, deleted after the haystack.
+- **Graphiti** needs a FalkorDB server (`docker run -p 6379:6379 falkordb/falkordb`);
+  `GRAPHITI_FALKORDB_HOST` / `GRAPHITI_FALKORDB_PORT` override localhost:6379.
 - **Full context** sends the whole conversation to the reader in one shot: the LoCoMo paper's
   ceiling.
 
@@ -76,5 +81,7 @@ python -m baselines.locomo.report \
 
 The judge is `bench/`'s: Memori's published LoCoMo notebook prompt (`ACCURACY_PROMPT`), accuracy
 (primary) and token F1 (supplementary), `--judge-model gpt-4o-mini` as for the published Membase
-numbers. `report --show-adversarial` adds LoCoMo category 5 for runs that kept it, reported
-separately because its scoring axis is inverted.
+numbers. `report --show-adversarial` adds LoCoMo category 5, reported separately because its
+scoring axis is inverted; only `bench.locomo.ours_core --include-adversarial` keeps it, the
+baseline runners always drop it. `--retrieval-only` output is graded by mem0_eval instead, with
+`--judge-model` defaulting to `MEMBASE_BENCH_MODEL` (gpt-4o).

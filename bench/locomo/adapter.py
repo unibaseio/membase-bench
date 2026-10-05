@@ -23,7 +23,7 @@ CATEGORY_NAMES = {
     5: "adversarial",
 }
 
-# Category 5 (adversarial) is left out, as in every published LoCoMo number.
+# Category 5 (adversarial) is left out, as in the mem0, Zep and Memori LoCoMo numbers.
 EXCLUDED_CATEGORIES = frozenset({5})
 
 

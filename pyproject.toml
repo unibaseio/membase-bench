@@ -3,7 +3,7 @@ name = "membase-bench"
 version = "0.1.0"
 description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (membase-core)."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE", "baselines/locomo/mem0_eval/LICENSE"]
 dependencies = [
@@ -24,6 +24,9 @@ memori = ["memori"]
 langmem = ["langmem", "langgraph"]
 zep = ["zep-cloud"]
 graphiti = ["graphiti-core[falkordb]"]
+
+[project.urls]
+Repository = "https://github.com/unibaseio/membase-bench"
 
 [build-system]
 requires = ["hatchling>=1.27"]
