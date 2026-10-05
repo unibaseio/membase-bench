@@ -28,6 +28,17 @@ finds the evidence: on LongMemEval_S the gold sessions were in the context for e
 
 About 3× fewer tokens than the full conversation on LoCoMo, and 11× fewer on LongMemEval_S.
 
+## What Membase does
+
+<p align="center">
+  <img src="assets/promo.jpg" width="840" alt="One memory for every AI: built from your notes, files and chats, the same answer in your assistant and in Claude Code, kept current as facts change">
+</p>
+
+One memory for every AI, built from your notes, files and chats, kept current as facts change. This
+repository measures how well that memory answers. More at
+[unibase.com/memory](https://www.unibase.com/memory); the SDK is
+[membase-ai](https://github.com/unibaseio/membase-ai).
+
 ## Quickstart
 
 ```bash
