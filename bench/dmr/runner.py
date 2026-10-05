@@ -15,8 +15,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from bench.common.types import Hypothesis, Instance
 from bench.common.llm import chat_text
+from bench.common.types import Hypothesis, Instance
 from bench.dmr.adapter import EVAL_OWNER, load
 from membase_core import CoreMemoryEngine, RetrievalResult
 
@@ -37,10 +37,10 @@ Respond with an ANSWER section containing your answer. As well as an EVIDENCE se
 
 
 def _context(result: RetrievalResult) -> str:
-    lines = []
-    for c in result.observations_top:
-        lines.append(f"- {c.subject or ''}: {c.text}" if c.source == "episode" else f"- {c.text}")
-    return "\n".join(lines)
+    return "\n".join(
+        f"- {c.subject or ''}: {c.text}" if c.source == "episode" else f"- {c.text}"
+        for c in result.observations_top
+    )
 
 
 def _answer(inst: Instance, work_dir: str, keep: bool, ingest_workers: int) -> Hypothesis:
@@ -66,15 +66,11 @@ def _answer(inst: Instance, work_dir: str, keep: bool, ingest_workers: int) -> H
                 if keep:
                     Path(marker).write_text("ok")
             result = engine.search(q.question, q.question_date, owner=EVAL_OWNER)
-            ctx = _context(result)
-            ans = (
-                chat_text(
-                    ANSWER_MODEL,
-                    SYSTEM,
-                    PROMPT.format(context=ctx, question=q.question),
-                    max_tokens=512,
-                )
-                or ""
+            ans = chat_text(
+                ANSWER_MODEL,
+                SYSTEM,
+                PROMPT.format(context=_context(result), question=q.question),
+                max_tokens=512,
             )
             return Hypothesis(
                 q.question_id,
@@ -118,7 +114,7 @@ def main(argv=None) -> int:
                     done[r["question_id"]] = line
     todo = [i for i in inst if i.question.question_id not in done]
     print(f"[dmr] {len(inst)} questions, {len(todo)} to run", file=sys.stderr)
-    wd = a.workdir or tempfile.mkdtemp(prefix="unibase-dmr-")
+    wd = a.workdir or tempfile.mkdtemp(prefix="membase-dmr-")
     Path(wd).mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     n = 0

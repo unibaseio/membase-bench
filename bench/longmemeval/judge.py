@@ -76,7 +76,7 @@ def _vote_once(prompt: str, model: str, max_retries: int = 5) -> tuple[bool, str
     failure propagates."""
     for attempt in range(max_retries):
         try:
-            return _vote_label(chat_text(model, "", prompt, max_tokens=2048) or "")
+            return _vote_label(chat_text(model, "", prompt, max_tokens=2048))
         except Exception:
             if attempt == max_retries - 1:
                 raise
@@ -92,82 +92,65 @@ def majority_vote(prompt: str, *, model: str, runs: int) -> tuple[bool, list[boo
     return sum(votes) > runs / 2, votes, [r for _, r in outcomes]
 
 
-def _judge_membase(row: dict, *, model: str, meta: dict, runs: int) -> dict:
-    """Same prompt, graded by ``runs`` parallel calls and a majority vote (Membase's
-    ``allm_judge`` protocol)."""
-    m = meta.get(row["question_id"], {})
-    if row.get("hypothesis") == NO_CONTEXT or str(row.get("hypothesis", "")).startswith("ERROR"):
-        return {
-            **row,
-            "question": m.get("question", ""),
-            "label": "WRONG",
-            "correct": False,
-            "excluded": False,
-        }
-    clause = _ABSTAIN if m.get("is_abs") else _CLAUSES.get(row.get("category", ""), "")
-    template = ACCURACY_PROMPT.replace("{generated_answer}", "{response}")
-    if clause:
-        template = f"{clause}\n\n{template}"
-    prompt = template.format(
-        question=m.get("question", ""),
-        gold_answer=str(row.get("gold", "")),
-        response=str(row.get("hypothesis", "")),
-    )
-    try:
-        is_correct, votes, reasoning = majority_vote(prompt, model=model, runs=runs)
-    except Exception:  # noqa: BLE001 -- every retry failed: leaves the denominator, as below
-        return {
-            **row,
-            "question": m.get("question", ""),
-            "label": None,
-            "correct": False,
-            "excluded": True,
-        }
-    label = "CORRECT" if is_correct else "WRONG"
-    return {
-        **row,
-        "question": m.get("question", ""),
-        "label": label,
-        "correct": is_correct,
-        "excluded": False,
-        "judge_runs": votes,
-        "judge_reasoning": reasoning,
-    }
+def _no_answer(row: dict) -> bool:
+    return row.get("hypothesis") == NO_CONTEXT or str(row.get("hypothesis", "")).startswith("ERROR")
 
 
-def _judge(row: dict, *, model: str, meta: dict, retries: int = 4) -> dict:
-    m = meta.get(row["question_id"], {})
-    if row.get("hypothesis") == NO_CONTEXT or str(row.get("hypothesis", "")).startswith("ERROR"):
-        return {
-            **row,
-            "question": m.get("question", ""),
-            "label": "WRONG",
-            "correct": False,
-            "excluded": False,
-        }
+def _prompt(row: dict, m: dict) -> str:
     clause = _ABSTAIN if m.get("is_abs") else _CLAUSES.get(row.get("category", ""), "")
     prompt = ACCURACY_PROMPT.format(
         question=m.get("question", ""),
         gold_answer=row.get("gold", ""),
         generated_answer=row.get("hypothesis", ""),
     )
-    if clause:
-        prompt = f"{clause}\n\n{prompt}"
-    label = None
-    for _ in range(retries):
-        try:
-            label = parse_label(chat_text(model, "", prompt, max_tokens=128) or "")
-        except Exception:  # noqa: BLE001
-            label = None
-        if label:
-            break
+    return f"{clause}\n\n{prompt}" if clause else prompt
+
+
+def _result(row: dict, m: dict, label: str | None, *, excluded: bool, **extra) -> dict:
     return {
         **row,
         "question": m.get("question", ""),
         "label": label,
         "correct": label == "CORRECT",
-        "excluded": label is None,
+        "excluded": excluded,
+        **extra,
     }
+
+
+def _judge_membase(row: dict, *, model: str, meta: dict, runs: int) -> dict:
+    """Same prompt, graded by ``runs`` parallel calls and a majority vote (Membase's
+    ``allm_judge`` protocol)."""
+    m = meta.get(row["question_id"], {})
+    if _no_answer(row):
+        return _result(row, m, "WRONG", excluded=False)
+    try:
+        is_correct, votes, reasoning = majority_vote(_prompt(row, m), model=model, runs=runs)
+    except Exception:  # noqa: BLE001 -- every retry failed: leaves the denominator, as below
+        return _result(row, m, None, excluded=True)
+    return _result(
+        row,
+        m,
+        "CORRECT" if is_correct else "WRONG",
+        excluded=False,
+        judge_runs=votes,
+        judge_reasoning=reasoning,
+    )
+
+
+def _judge(row: dict, *, model: str, meta: dict, retries: int = 4) -> dict:
+    m = meta.get(row["question_id"], {})
+    if _no_answer(row):
+        return _result(row, m, "WRONG", excluded=False)
+    prompt = _prompt(row, m)
+    label = None
+    for _ in range(retries):
+        try:
+            label = parse_label(chat_text(model, "", prompt, max_tokens=128))
+        except Exception:  # noqa: BLE001
+            label = None
+        if label:
+            break
+    return _result(row, m, label, excluded=label is None)
 
 
 def main(argv: list[str] | None = None) -> int:

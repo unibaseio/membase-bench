@@ -32,7 +32,7 @@ CATEGORY_NAMES = {
 EXCLUDED_CATEGORIES = frozenset({5})
 
 
-def _ensure_dataset(path: Path = DEFAULT_CACHE) -> Path:
+def _ensure_dataset(path: Path) -> Path:
     if path.exists():
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -79,9 +79,7 @@ def load(
 
     ``question_id`` indexes the unfiltered ``qa`` list, so ids are stable either way.
     """
-    p = Path(path) if path else _ensure_dataset()
-    if not p.exists():
-        p = _ensure_dataset(p)
+    p = _ensure_dataset(Path(path) if path else DEFAULT_CACHE)
     data = json.loads(p.read_text())
 
     instances: list[Instance] = []
@@ -128,20 +126,16 @@ def _build_sessions(sample_id: str, conv: dict[str, Any]) -> list[Session]:
         key=lambda k: int(k.rsplit("_", 1)[1]),
     )
     for sk in keys:
-        date_key = f"{sk}_date_time"
-        date = _norm_date(conv.get(date_key))
-        turns_raw = conv.get(sk) or []
+        date = _norm_date(conv.get(f"{sk}_date_time"))
         turns = []
-        for t in turns_raw:
+        for t in conv.get(sk) or []:
             speaker = t.get("speaker") or t.get("role") or "user"
             text = t.get("text") or t.get("content") or ""
             # Fold shared-image captions into the turn text.
             blip = t.get("blip_caption") or ""
             query = t.get("query") or ""
             if blip or query:
-                img_desc = query if query else blip
-                if query and blip:
-                    img_desc = f"{query} — {blip}"
+                img_desc = f"{query} — {blip}" if query and blip else (query or blip)
                 text = f"[Shared image: {img_desc}] {text}".strip()
             # Speaker name as role; the prefix stays in content for lexical/embedding recall.
             turns.append({
@@ -153,7 +147,6 @@ def _build_sessions(sample_id: str, conv: dict[str, Any]) -> list[Session]:
             session_id=f"{sample_id}-{sk}",
             session_date=date,
             turns=turns,
-            evidence_turn_idx=set(),
         ))
     return sessions
 

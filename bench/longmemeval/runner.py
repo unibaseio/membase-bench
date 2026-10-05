@@ -131,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
         file=sys.stderr,
     )
 
-    work_dir = args.workdir or tempfile.mkdtemp(prefix="unibase-lme-")
+    work_dir = args.workdir or tempfile.mkdtemp(prefix="membase-lme-")
     Path(work_dir).mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     n = 0

@@ -10,15 +10,13 @@ from __future__ import annotations
 
 import argparse
 import collections
+import importlib
 import json
 import sys
 from pathlib import Path
 
-import importlib
 
-
-def _gold_lookup(bench: str = "locomo") -> dict[str, set[str]]:
-    """Gold session ids per question for the named benchmark."""
+def _gold_lookup(bench: str) -> dict[str, set[str]]:
     ad = importlib.import_module(f"bench.{bench}.adapter")
     # Category 5 included: this is a lookup table, not the question set.
     kwargs = {"include_adversarial": True} if bench == "locomo" else {}
@@ -65,8 +63,7 @@ def score(rows: list[dict], bench: str = "locomo") -> dict:
 
         if "correct" in r:
             judged = True
-            correct = bool(r.get("correct"))
-            if correct:
+            if r.get("correct"):
                 split["correct_with_gold" if has_all else "correct_without_gold"] += 1
             else:
                 split["reader_miss" if has_all else "retrieval_miss"] += 1

@@ -43,18 +43,14 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from baselines.common.config import load_config
+from baselines.common.config import default_model
 from baselines.locomo.mem0_eval.prompts import (
-    CATEGORIES_TO_EVALUATE,
     CATEGORY_NAMES,
     JUDGE_SYSTEM_PROMPT,
     get_answer_generation_prompt,
     get_judge_prompt,
     preprocess_answer,
 )
-
-
-# ── Internal: category id <-> name ──────────────────────────────────────
 
 
 # We use string category names (single_hop / multi_hop / …) on disk; mem0
@@ -82,9 +78,6 @@ def _category_id(name_or_id: str | int) -> int:
     return 0
 
 
-# ── Reader (answer generation) ──────────────────────────────────────────
-
-
 def _strip_answer_marker(generated: str) -> str:
     """mem0's reader appends 'ANSWER: ...' at the end after the 7-step CoT.
     Pull just the answer if present; otherwise return the whole text."""
@@ -93,39 +86,32 @@ def _strip_answer_marker(generated: str) -> str:
     return generated.strip()
 
 
-def _generate_answer(llm_cfg, model: str, question: str, memories: list[dict],
-                      reference_date: str | None,
-                      max_completion_tokens: int = 1024) -> str:
+def _generate_answer(model: str, question: str, memories: list[dict],
+                     reference_date: str | None) -> str:
     from baselines.common.llm import chat_text
     prompt = get_answer_generation_prompt(
         question=question, search_results=memories, reference_date=reference_date,
     )
     # mem0 sends user-only; chat_text accepts system="" for the same shape.
     return _strip_answer_marker(
-        chat_text(llm_cfg, model, system="", user=prompt, max_tokens=max_completion_tokens)
+        chat_text(model, system="", user=prompt, max_tokens=1024)
     )
 
 
-# ── Judge ───────────────────────────────────────────────────────────────
-
-
-def _judge_answer(llm_cfg, model: str, category_id: int, question: str,
-                   gold: str, hypothesis: str) -> tuple[bool, str]:
+def _judge_answer(model: str, category_id: int, question: str,
+                  gold: str, hypothesis: str) -> tuple[bool, str]:
     from baselines.common.llm import chat_json
     prompt = get_judge_prompt(
         category=category_id, question=question,
         answer=preprocess_answer(category_id, gold), response=hypothesis,
     )
-    data = chat_json(llm_cfg, model, system=JUDGE_SYSTEM_PROMPT, user=prompt, max_tokens=512)
+    data = chat_json(model, system=JUDGE_SYSTEM_PROMPT, user=prompt, max_tokens=512)
     label = str(data.get("label", "")).upper().strip()
     reasoning = str(data.get("reasoning", "")).strip()
     return (label == "CORRECT"), reasoning
 
 
-# ── Main loop ───────────────────────────────────────────────────────────
-
-
-def _process_row(row: dict, llm_cfg, answerer: str, judge_model: str, top_k: int) -> dict:
+def _process_row(row: dict, answerer: str, judge_model: str, top_k: int) -> dict:
     qid = row.get("question_id", "")
     question = row.get("question", "")
     category = row.get("category", "")
@@ -135,7 +121,7 @@ def _process_row(row: dict, llm_cfg, answerer: str, judge_model: str, top_k: int
     reference_date = row.get("reference_date") or "2023"
 
     try:
-        generated = _generate_answer(llm_cfg, answerer, question, memories, reference_date)
+        generated = _generate_answer(answerer, question, memories, reference_date)
     except Exception as exc:
         return {
             "question_id": qid, "category": category, "question": question,
@@ -143,7 +129,7 @@ def _process_row(row: dict, llm_cfg, answerer: str, judge_model: str, top_k: int
             "judgment": "WRONG", "correct": False, "reasoning": "answerer failed",
         }
     try:
-        correct, reasoning = _judge_answer(llm_cfg, judge_model, cat_id, question, gold, generated)
+        correct, reasoning = _judge_answer(judge_model, cat_id, question, gold, generated)
     except Exception as exc:
         return {
             "question_id": qid, "category": category, "question": question,
@@ -191,16 +177,13 @@ def _summarise(rows: list[dict]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    cfg = load_config([])
     ap = argparse.ArgumentParser()
     ap.add_argument("retrieval", help="JSONL with one row per question, fields: "
                                        "question_id, category, question, gold, memories[], "
                                        "reference_date (optional)")
     ap.add_argument("--out", required=True, help="JSONL output (one row per judged question)")
-    ap.add_argument("--answerer-model",
-                    default=cfg.bench.answerer_model)
-    ap.add_argument("--judge-model",
-                    default=cfg.bench.judge_model)
+    ap.add_argument("--answerer-model", default=default_model())
+    ap.add_argument("--judge-model", default=default_model())
     ap.add_argument("--top-k", type=int, default=200,
                     help="How many of the supplied memories to give the Reader (mem0 default: 200)")
     ap.add_argument("--workers", type=int, default=8)
@@ -208,7 +191,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="Skip questions already present (correctly) in --out")
     args = ap.parse_args(argv)
 
-    rows_in = [json.loads(l) for l in Path(args.retrieval).read_text().splitlines() if l.strip()]
+    rows_in = [
+        json.loads(line) for line in Path(args.retrieval).read_text().splitlines() if line.strip()
+    ]
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -236,8 +221,8 @@ def main(argv: list[str] | None = None) -> int:
     with ThreadPoolExecutor(max_workers=args.workers) as pool, out_path.open("w") as fout:
         for line in kept:
             fout.write(line + "\n")
-        futs = {pool.submit(_process_row, r, cfg.llm, args.answerer_model,
-                             args.judge_model, args.top_k): r["question_id"]
+        futs = {pool.submit(_process_row, r, args.answerer_model,
+                            args.judge_model, args.top_k): r["question_id"]
                 for r in rows_in}
         for fut in tqdm(as_completed(futs), total=len(futs), desc="mem0-eval"):
             row = fut.result()
@@ -249,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
           f"{time.time() - t0:.0f}s -> {out_path}", file=sys.stderr)
 
     # Reload everything (resumed + fresh) for the summary.
-    all_rows = [json.loads(l) for l in out_path.read_text().splitlines() if l.strip()]
+    all_rows = [json.loads(line) for line in out_path.read_text().splitlines() if line.strip()]
     _summarise(all_rows)
     return 0
 

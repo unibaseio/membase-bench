@@ -44,9 +44,7 @@ def _stratified_sample(instances: list[Instance], n_per_cat: int, seed: int) -> 
 
 
 def _group_key(inst: Instance) -> str:
-    if "-q" in inst.instance_id:
-        return inst.instance_id.rsplit("-q", 1)[0]
-    return "|".join(s.session_id for s in inst.sessions) or inst.instance_id
+    return inst.instance_id.rsplit("-q", 1)[0]
 
 
 def _safe_key(raw: str) -> str:
@@ -92,8 +90,6 @@ def _answer_group(
     question_workers: int = 8,
     keep_store: bool = False,
 ) -> list[Hypothesis]:
-    if not instances:
-        return []
     db_path = os.path.join(work_dir, f"{_safe_key(group_key)}.db")
     idx_path = db_path + ".faiss"
     # Written only after ingest completes; a bare db file may be a half-ingested
@@ -160,8 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     instances = load(limit=args.limit, include_adversarial=args.include_adversarial)
     if args.qids_file:
         data = json.loads(Path(args.qids_file).read_text())
-        qids = data[args.qids_key] if isinstance(data, dict) else data
-        wanted = set(qids)
+        wanted = set(data[args.qids_key] if isinstance(data, dict) else data)
         instances = [inst for inst in instances if inst.question.question_id in wanted]
     if args.sample_per_category is not None:
         instances = _stratified_sample(instances, args.sample_per_category, args.seed)
@@ -194,10 +189,10 @@ def main(argv: list[str] | None = None) -> int:
         file=sys.stderr,
     )
 
-    work_dir = args.workdir or tempfile.mkdtemp(prefix="unibase-locomo-core-")
+    work_dir = args.workdir or tempfile.mkdtemp(prefix="membase-locomo-core-")
     Path(work_dir).mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-    results: list[Hypothesis] = []
+    n = 0
     try:
         with ThreadPoolExecutor(max_workers=args.workers) as pool, out_path.open("w") as fout:
             for line in kept_lines:
@@ -215,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
             }
             for fut in tqdm(as_completed(futs), total=len(futs), desc="ours-core:haystacks"):
                 group_results = fut.result()
-                results.extend(group_results)
+                n += len(group_results)
                 for h in group_results:
                     fout.write(json.dumps(asdict(h)) + "\n")
                 fout.flush()
@@ -224,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
             shutil.rmtree(work_dir, ignore_errors=True)
 
     print(
-        f"[ours-core] wrote {len(results)} new + {len(done_ids)} resumed "
+        f"[ours-core] wrote {n} new + {len(done_ids)} resumed "
         f"in {time.time() - t0:.0f}s -> {out_path}",
         file=sys.stderr,
     )

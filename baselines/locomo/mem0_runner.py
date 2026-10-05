@@ -1,20 +1,8 @@
-"""Run LoCoMo through mem0 (https://github.com/mem0ai/mem0).
+"""mem0 baseline (https://github.com/mem0ai/mem0): one mem0 ``user_id`` per conversation, each
+session added with ``Memory.add``; each question runs ``Memory.search`` and one reader call over
+the retrieved memories, mem0's published LoCoMo recipe.
 
-Mirrors the membase_runner output format so the same memori_official_eval
-judge can score both side-by-side.
-
-Mapping:
-  - Each LoCoMo conversation = one mem0 user_id (one isolated memory).
-  - Sessions are added with `Memory.add(messages, user_id=...)`; mem0
-    extracts and stores facts internally.
-  - Each question runs `Memory.search(query, user_id=...)` then asks an
-    OpenAI Chat completion to compose the final answer over the retrieved
-    memories. This matches mem0's published LoCoMo recipe.
-
-Install:
-  pip install mem0ai
-
-mem0 expects OPENAI_API_KEY in the environment.
+Run: ``python -m baselines.locomo.mem0_runner --out runs/mem0.jsonl`` (needs ``OPENAI_API_KEY``).
 """
 
 from __future__ import annotations
@@ -30,7 +18,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from baselines.common.config import load_config
+from baselines.common.config import default_model
 from baselines.common.runners import (
     gold_text,
     group_key as _group_key,
@@ -56,8 +44,6 @@ Answer:"""
 
 
 def _compose_answer(model: str, query: str, memories: list[str]) -> str:
-    """Use an OpenAI chat call to synthesize an answer from retrieved memories.
-    Mirrors mem0's published LoCoMo recipe."""
     from openai import OpenAI
     client = OpenAI()
     body = "\n".join(f"- {m}" for m in memories) if memories else "(none)"
@@ -105,8 +91,8 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
 
         # mem0's parse_messages drops any role that isn't user/assistant/system,
         # so LoCoMo speaker names like "Caroline" → empty string → 400 from
-        # OpenAI embed. Normalize to a 2-speaker user/assistant alternation,
-        # keeping the speaker name as a content prefix for retrieval.
+        # OpenAI embed. Normalize to a 2-speaker user/assistant alternation;
+        # the speaker name stays in the content prefix the loader adds.
         sessions_to_ingest = [] if already_ingested else instances[0].sessions
         for s in sessions_to_ingest:
             speaker_to_role: dict[str, str] = {}
@@ -117,7 +103,6 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
                     continue
                 speaker = t.get("speaker") or t.get("role") or "user"
                 if speaker not in speaker_to_role:
-                    # First speaker → user, second → assistant.
                     speaker_to_role[speaker] = (
                         "user" if not speaker_to_role else "assistant"
                     )
@@ -133,7 +118,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
             # Prefix the session timestamp so the extractor anchors facts
             # to LoCoMo's actual conversation date.
             session_date = (s.session_date or "").strip()
-            if session_date and messages:
+            if session_date:
                 messages[0] = dict(messages[0])
                 messages[0]["content"] = (
                     f"[Session date: {session_date}] " + messages[0]["content"]
@@ -202,7 +187,6 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
 
 
 def main(argv: list[str] | None = None) -> int:
-    cfg = load_config([])
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, help="path to write hypotheses jsonl")
     ap.add_argument("--workers", type=int, default=2,
@@ -210,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--sample-per-category", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--reader-model", default=cfg.bench.reader_model)
+    ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--retrieval-only", action="store_true",
                     help="Emit retrieval rows (memories list) instead of LLM-composed answers.")

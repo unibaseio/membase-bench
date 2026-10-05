@@ -2,7 +2,6 @@
 
 Usage:
   python -m baselines.locomo.report runs/membase.judged.jsonl runs/mem0.judged.jsonl ...
-  membase bench locomo report runs/*.judged.jsonl
 
 Output columns (matching the LoCoMo paper convention):
 
@@ -25,7 +24,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-# Map our internal category ids to the published-format display labels.
 DISPLAY = {
     "single_hop": "Single-hop",
     "multi_hop":  "Multi-hop",
@@ -133,8 +131,7 @@ def main(argv: list[str] | None = None) -> int:
 
     overrides = _parse_label_args(args.label)
 
-    # Collect (label, path, by_cat, main, adv) per file.
-    rows: list[tuple[str, Path, dict[str, Score], Score, Score]] = []
+    rows: list[tuple[str, dict[str, Score], Score, Score]] = []
     for p in args.paths:
         path = Path(p)
         if not path.exists():
@@ -142,30 +139,28 @@ def main(argv: list[str] | None = None) -> int:
             continue
         label = overrides.get(p) or _label_from_path(path)
         by_cat, main, adv = _aggregate(_load_judged(path))
-        rows.append((label, path, by_cat, main, adv))
+        rows.append((label, by_cat, main, adv))
 
     if not rows:
         return 1
 
-    # Header
     print()
     print(_format_header())
     print("-" * len(_format_header()))
-    for label, _path, by_cat, main, _adv in rows:
+    for label, by_cat, main, _adv in rows:
         print(_format_row(label, by_cat, main, metric=args.metric))
 
     if args.show_adversarial:
         any_adv = any(adv.n for *_, adv in rows)
         if any_adv:
             print()
-            print(f"adversarial (gold=null trick questions, lower is the correct outcome)")
-            for label, _path, _by_cat, _main, adv in rows:
+            print("adversarial (gold=null trick questions, lower is the correct outcome)")
+            for label, _by_cat, _main, adv in rows:
                 print(f"  {label:<20s}  n={adv.n:3d}  acc={adv.acc:6.2f}  f1={adv.f1:6.2f}")
 
-    # Footer: total instance counts per runner (sanity).
     print()
     print("instance counts (Single+Multi+Open+Temporal, excluding adversarial):")
-    for label, _path, _by_cat, main, _adv in rows:
+    for label, _by_cat, main, _adv in rows:
         print(f"  {label:<20s}  n={main.n}")
 
     return 0

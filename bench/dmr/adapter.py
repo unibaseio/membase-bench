@@ -74,13 +74,13 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
             t = _turns(p.get("dialog") or [])
             if t:
                 sessions.append(
-                    Session(f"{prefix}-session_{k}", dates[k].strftime("%Y-%m-%dT%H:%M"), t, set())
+                    Session(f"{prefix}-session_{k}", dates[k].strftime("%Y-%m-%dT%H:%M"), t)
                 )
         cur = _turns(r.get("dialog") or [])
         if cur:
             sessions.append(
                 Session(
-                    f"{prefix}-session_{len(prevs)}", _ANCHOR.strftime("%Y-%m-%dT%H:%M"), cur, set()
+                    f"{prefix}-session_{len(prevs)}", _ANCHOR.strftime("%Y-%m-%dT%H:%M"), cur
                 )
             )
         si = r.get("self_instruct") or {}

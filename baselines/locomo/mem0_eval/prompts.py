@@ -15,7 +15,6 @@ Category mapping:
 """
 
 from datetime import datetime as _datetime
-from typing import List
 
 
 # ===============================================================================

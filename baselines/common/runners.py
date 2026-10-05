@@ -1,10 +1,4 @@
-"""Helpers shared by the LoCoMo runners (membase / mem0 / langmem / …).
-
-Each runner is otherwise self-contained so a benchmark reproducer doesn't
-need to depend on any membase internals — that constraint kept these
-helpers from being shared earlier. The handful of functions below are
-pure stdlib and don't break that property.
-"""
+"""Helpers shared by the baseline runners: sampling, haystack grouping, ids and row shapes."""
 
 from __future__ import annotations
 
@@ -37,9 +31,7 @@ def group_key(inst: Instance) -> str:
     LoCoMo: many questions share a conversation — ``conv-26-q0`` →
     ``conv-26``. LongMemEval: each question carries its *own* haystack
     (53 distractor sessions, no sharing) and the instance_id is the
-    unique question_id, so the question_id itself is the group. (The old
-    fallback joined all session_ids, which on LongMemEval produced a
-    1000-char string that overflowed db filenames.)
+    unique question_id, so the question_id itself is the group.
     """
     if "-q" in inst.instance_id:
         return inst.instance_id.rsplit("-q", 1)[0]
@@ -59,7 +51,7 @@ def gold_text(inst: Instance) -> str:
 def make_retrieval_row(inst: Instance, memories: list[dict[str, Any]] | None,
                         error: str | None = None) -> dict[str, Any]:
     """Build the dict every retrieval-only runner emits. Keep one schema
-    so `bench locomo eval` (mem0_eval) can read any of them."""
+    so ``baselines.locomo.mem0_eval.run`` can read any of them."""
     row: dict[str, Any] = {
         "question_id": inst.question.question_id,
         "category": inst.question.category,
@@ -71,3 +63,33 @@ def make_retrieval_row(inst: Instance, memories: list[dict[str, Any]] | None,
     if error:
         row["error"] = error
     return row
+
+
+def speaker_of(turn: dict) -> str:
+    return str(turn.get("speaker") or turn.get("role") or "user")
+
+
+def speaker_line(turn: dict) -> str:
+    """``speaker: text``. LoCoMo's loader already writes the prefix; LongMemEval's does not."""
+    speaker, content = speaker_of(turn), str(turn.get("content") or "").strip()
+    return content if content.startswith(f"{speaker}: ") else f"{speaker}: {content}"
+
+
+def chat_roles(inst: Instance) -> dict[str, str]:
+    """Speaker -> ``user`` / ``assistant`` for chat-shaped memory APIs. LongMemEval turns already
+    carry those roles; LoCoMo's two named speakers become ``user`` (the first to speak) and
+    ``assistant``."""
+    roles: dict[str, str] = {}
+    for s in inst.sessions:
+        for t in s.turns:
+            speaker = speaker_of(t)
+            if speaker in roles:
+                continue
+            low = speaker.lower()
+            if low in ("user", "human"):
+                roles[speaker] = "user"
+            elif low in ("assistant", "ai"):
+                roles[speaker] = "assistant"
+            else:
+                roles[speaker] = "user" if "user" not in roles.values() else "assistant"
+    return roles

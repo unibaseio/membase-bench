@@ -1,27 +1,14 @@
-"""Run LoCoMo through Memori v3 (https://github.com/GibsonAI/memori).
+"""Memori v3 baseline (https://github.com/GibsonAI/memori). Memori captures memories as a side
+effect of OpenAI chat calls: ``Memori().llm.register`` patches an ``openai.OpenAI`` client, every
+``chat.completions.create`` writes facts to Memori's storage in the background, and
+``mem.recall(query)`` returns them as ``FactSearchResult`` rows.
 
-Memori captures memories as a side effect of OpenAI chat calls. Its v3
-SDK patches an ``openai.OpenAI`` client through ``Memori().llm.register``;
-afterwards every ``client.chat.completions.create(...)`` writes facts
-to Memori's storage in the background, and ``mem.recall(query)``
-returns those facts as ``FactSearchResult`` rows.
+Memori runs in BYODB mode on an isolated per-haystack sqlite file, so it never touches the cloud
+(no ``MEMORI_API_KEY``). If only ``memorisdk`` is installable, alias its dist-info to ``memori``
+(copy ``memorisdk-3.X.Y.dist-info`` to ``memori-3.X.Y.dist-info`` and set ``Name: memori`` in its
+METADATA).
 
-We run Memori in BYODB mode against an isolated per-haystack sqlite
-file so it never touches the cloud (no ``MEMORI_API_KEY`` needed).
-The schema is created once via ``Builder.execute()`` because v3's
-``Memori.__init__`` doesn't auto-migrate when a connection factory is
-passed.
-
-Mirrors the membase / mem0 / langmem runners' jsonl output so the
-``mem0_eval`` judge can score all of them side-by-side.
-
-Install:
-  pip install memori                  # v3 (preferred)
-  # or, if only `memorisdk` is on PyPI in your environment, alias the
-  # dist-info: cp -r memorisdk-3.X.Y.dist-info memori-3.X.Y.dist-info
-  # then sed -i 's/Name: memorisdk/Name: memori/' memori-3.X.Y.dist-info/METADATA
-
-Memori reads ``OPENAI_API_KEY`` from the environment.
+Run: ``python -m baselines.locomo.memori_runner --out runs/memori.jsonl`` (needs ``OPENAI_API_KEY``).
 """
 
 from __future__ import annotations
@@ -39,19 +26,23 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
 
-# Memori prints a deprecation warning about the legacy package name on import;
-# silence it so bench output stays clean.
-warnings.filterwarnings("ignore", message=".*legacy package name.*")
-
 from tqdm import tqdm
 
-from baselines.common.config import load_config
+from baselines.common.config import default_model
 from baselines.common.runners import (
+    gold_text,
     group_key as _group_key,
+    make_retrieval_row,
+    speaker_line,
+    speaker_of,
     stratified_sample as _stratified_sample,
 )
 from bench.common.types import Hypothesis, Instance
-from bench.locomo.adapter import load
+from baselines.common.dataset import load
+
+# Memori prints a deprecation warning about the legacy package name on import;
+# silence it so bench output stays clean.
+warnings.filterwarnings("ignore", message=".*legacy package name.*")
 
 
 _ANSWER_PROMPT = """\
@@ -85,8 +76,7 @@ def _compose_answer(model: str, query: str, facts: list[str]) -> str:
 def _ingest_turns_via_provider(client, turns: list[dict],
                                 session_date: str | None = None) -> None:
     """Drive the Memori-patched OpenAI client with each turn so it captures
-    the conversation. The patch writes facts to Memori as a side effect of
-    ``chat.completions.create``.
+    the conversation.
 
     LoCoMo carries free-form speaker names ("John"/"Maria"); OpenAI's chat
     API only accepts user/assistant/system/... so we normalise to a 2-speaker
@@ -96,15 +86,15 @@ def _ingest_turns_via_provider(client, turns: list[dict],
     """
     speaker_to_role: dict[str, str] = {}
     history: list[dict] = []
-    for i, t in enumerate(turns):
+    for t in turns:
         content = (t.get("content") or "").strip()
         if not content:
             continue
-        speaker = t.get("speaker") or t.get("role") or "user"
+        speaker = speaker_of(t)
         if speaker not in speaker_to_role:
             speaker_to_role[speaker] = "user" if not speaker_to_role else "assistant"
-        msg_content = f"{speaker}: {content}"
-        if i == 0 and session_date:
+        msg_content = speaker_line(t)
+        if not history and session_date:
             msg_content = f"[Session date: {session_date}] {msg_content}"
         history.append({"role": speaker_to_role[speaker], "content": msg_content})
         try:
@@ -164,35 +154,23 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
                         rid = str(r.get("id", ""))
                         created = str(r.get("date_created", ""))
                     else:
-                        text = str(r); score = 0.0; rid = ""; created = ""
+                        text = str(r)
+                        score = 0.0
+                        rid = ""
+                        created = ""
                     facts.append(text)
                     memories.append({"memory": text, "score": score, "id": rid,
                                      "created_at": created, "source": "memori"})
 
                 if retrieval_only:
-                    out.append({
-                        "question_id": inst.question.question_id,
-                        "category": inst.question.category,
-                        "question": inst.question.question,
-                        "gold": (
-                            inst.question.answer
-                            if isinstance(inst.question.answer, str)
-                            else json.dumps(inst.question.answer)
-                        ),
-                        "reference_date": inst.question.question_date,
-                        "memories": memories,
-                    })
+                    out.append(make_retrieval_row(inst, memories=memories))
                 else:
                     ans = _compose_answer(reader_model, inst.question.question, facts)
                     out.append(asdict(Hypothesis(
                         question_id=inst.question.question_id,
                         hypothesis=ans,
                         category=inst.question.category,
-                        gold=(
-                            inst.question.answer
-                            if isinstance(inst.question.answer, str)
-                            else json.dumps(inst.question.answer)
-                        ),
+                        gold=gold_text(inst),
                     )))
             except Exception as exc:
                 if not retrieval_only:
@@ -216,14 +194,13 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
 
 
 def main(argv: list[str] | None = None) -> int:
-    cfg = load_config([])
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--sample-per-category", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--reader-model", default=cfg.bench.reader_model)
+    ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--retrieval-only", action="store_true",
                     help="Emit retrieval rows (memories list) instead of LLM answers.")

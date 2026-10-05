@@ -15,6 +15,8 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
+from bench.dmr.adapter import load
+
 SYSTEM = (
     "You are an expert grader that determines if answers to questions match a gold standard answer"
 )
@@ -72,8 +74,6 @@ def main(argv=None) -> int:
     ap.add_argument("--judge-model", default="gpt-4o-mini")
     ap.add_argument("--workers", type=int, default=8)
     a = ap.parse_args(argv)
-    from bench.dmr.adapter import load
-
     questions = {i.question.question_id: i.question.question for i in load()}
     rows = [json.loads(line) for line in Path(a.hypotheses).read_text().splitlines() if line.strip()]
     client = OpenAI()

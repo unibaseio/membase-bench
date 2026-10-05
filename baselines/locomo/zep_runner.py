@@ -1,16 +1,7 @@
-"""Run LoCoMo through Zep (https://www.getzep.com/).
+"""Zep Cloud baseline (https://www.getzep.com/): one Zep session per conversation, messages posted
+with ``memory.add``, each question answered over ``memory.search_sessions`` hits.
 
-Zep is cloud-only (`zep-cloud`); this runner needs a ``ZEP_API_KEY`` and
-network access. We add memory by creating a session per LoCoMo
-conversation, posting messages, and querying with ``memory.search``.
-
-Install:
-  pip install zep-cloud
-
-Required env:
-  ZEP_API_KEY
-
-Output schema matches the other runners.
+Zep is cloud-only: ``ZEP_API_KEY=... python -m baselines.locomo.zep_runner --out runs/zep.jsonl``.
 """
 
 from __future__ import annotations
@@ -27,10 +18,13 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from baselines.common.config import load_config
+from baselines.common.config import default_model
 from baselines.common.runners import (
+    chat_roles,
+    gold_text,
     group_key as _group_key,
     safe_id as _safe_session_id,
+    speaker_of,
     stratified_sample as _stratified_sample,
 )
 from bench.common.types import Hypothesis, Instance
@@ -82,7 +76,6 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str) 
     session_id = _safe_session_id(group_key)
     user_id = f"locomo-{session_id}"
 
-    # Set up user + session.
     try:
         client.user.add(user_id=user_id)
     except Exception:
@@ -93,6 +86,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str) 
         pass
 
     out: list[Hypothesis] = []
+    roles = chat_roles(instances[0])
     try:
         for s in instances[0].sessions:
             messages = []
@@ -100,8 +94,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str) 
                 content = (t.get("content") or "").strip()
                 if not content:
                     continue
-                role = "user" if (t.get("role") or "user").lower() in ("user", "human") else "assistant"
-                messages.append(Message(role_type=role, content=content))
+                messages.append(Message(role_type=roles[speaker_of(t)], content=content))
             if messages:
                 try:
                     client.memory.add(session_id=session_id, messages=messages)
@@ -132,11 +125,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str) 
                 question_id=inst.question.question_id,
                 hypothesis=ans,
                 category=inst.question.category,
-                gold=(
-                    inst.question.answer
-                    if isinstance(inst.question.answer, str)
-                    else json.dumps(inst.question.answer)
-                ),
+                gold=gold_text(inst),
             ))
         return out
     finally:
@@ -147,15 +136,13 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str) 
 
 
 def main(argv: list[str] | None = None) -> int:
-    cfg = load_config([])
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--sample-per-category", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--reader-model",
-                    default=cfg.bench.reader_model)
+    ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
     args = ap.parse_args(argv)
 

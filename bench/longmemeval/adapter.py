@@ -69,7 +69,6 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
                 session_id=f"{sid_prefix}-session_{k}",
                 session_date=_iso(dt),
                 turns=turns,
-                evidence_turn_idx=set(),
             ))
         qdt = parse_date(q.get("question_date"))
         qid = str(q.get("question_id") or i)

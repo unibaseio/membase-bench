@@ -1,19 +1,13 @@
-"""Run LoCoMo through LangMem (https://github.com/langchain-ai/langmem).
+"""LangMem baseline (https://github.com/langchain-ai/langmem): a memory store manager extracts
+facts from each session into an in-process langgraph ``InMemoryStore``, one namespace per
+conversation, and each question searches that store.
 
-LangMem extracts memories from conversation transcripts via a memory
-manager, stores them in a langgraph BaseStore, and retrieves with a
-search tool. We map each LoCoMo conversation to one isolated namespace.
-
-Install:
-  pip install langmem langgraph
-
-Output schema matches the other runners.
+Run: ``python -m baselines.locomo.langmem_runner --out runs/langmem.jsonl`` (needs ``OPENAI_API_KEY``).
 """
 
 from __future__ import annotations
 
 import argparse
-import asyncio
 import collections
 import json
 import sys
@@ -24,12 +18,14 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from baselines.common.config import load_config
+from baselines.common.config import default_model
 from baselines.common.runners import (
+    chat_roles,
     gold_text,
     group_key as _group_key,
     make_retrieval_row,
     safe_id as _safe_ns,
+    speaker_of,
     stratified_sample as _stratified_sample,
 )
 from bench.common.types import Hypothesis, Instance
@@ -65,16 +61,14 @@ def _compose_answer(model: str, query: str, memories: list[str]) -> str:
     return (resp.choices[0].message.content or "").strip()
 
 
-def _ingest_with_langmem(manager, store, namespace: tuple, turns: list[dict]) -> None:
-    """Drive the LangMem memory_store_manager over a session transcript."""
+def _ingest_with_langmem(manager, namespace: tuple, turns: list[dict], roles: dict[str, str]) -> None:
     from langchain_core.messages import HumanMessage, AIMessage
     msgs = []
     for t in turns:
         content = (t.get("content") or "").strip()
         if not content:
             continue
-        role = (t.get("role") or "user").lower()
-        if role in ("user", "human"):
+        if roles[speaker_of(t)] == "user":
             msgs.append(HumanMessage(content=content))
         else:
             msgs.append(AIMessage(content=content))
@@ -149,8 +143,9 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
         return json.dumps(val)
 
     out: list[Hypothesis] | list[dict] = []
+    roles = chat_roles(instances[0])
     for s in instances[0].sessions:
-        _ingest_with_langmem(manager, store, namespace, s.turns)
+        _ingest_with_langmem(manager, namespace, s.turns, roles)
 
     if retrieval_only:
         rows: list[dict] = []
@@ -190,15 +185,13 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
 
 
 def main(argv: list[str] | None = None) -> int:
-    cfg = load_config([])
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--sample-per-category", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--reader-model",
-                    default=cfg.bench.reader_model)
+    ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--retrieval-only", action="store_true",
                     help="Emit retrieved memories instead of LLM answers (mem0-eval compatible).")

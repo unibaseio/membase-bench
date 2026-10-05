@@ -1,34 +1,9 @@
-"""Run LoCoMo through Graphiti (https://github.com/getzep/graphiti).
+"""Graphiti baseline (https://github.com/getzep/graphiti), Zep's open-source temporal knowledge
+graph: one Graphiti ``group_id`` per conversation, sessions added as short ``message`` episodes
+anchored at the session date, each question answered over the fact edges ``search`` returns.
 
-Graphiti is Zep's open-source temporal knowledge-graph memory engine —
-the local, reproducible core under the Zep cloud product. It extracts
-entities + relationships from each episode via an LLM and stores them as
-a time-aware graph; recall is a hybrid (semantic + BM25 + graph) search
-over the edges (facts).
-
-This is the closest architectural comparison to Membase (graph vs graph),
-which is why it's worth a fair, apples-to-apples run.
-
-Mapping (mirrors mem0_runner so the same judge scores both):
-  - Each LoCoMo conversation = one Graphiti ``group_id`` (isolated graph).
-  - Each session is added with ``add_episode`` as a ``message`` episode,
-    tagged with the session's ``reference_time`` so the graph is temporally
-    grounded (Graphiti's headline feature).
-  - Each question runs ``search(query, group_ids=[gid])`` → fact edges,
-    then composes an answer with one OpenAI call over the retrieved facts.
-
-Fairness: the extractor + reader are pinned to gpt-4o-mini /
-text-embedding-3-small — the same models the mem0 / memori / langmem
-runners use — so the only variable is the memory architecture.
-
-Backend: a graph DB. Easiest is FalkorDB (a Redis module):
-
-    docker run -d -p 6379:6379 falkordb/falkordb:latest
-
-Install:
-    pip install 'graphiti-core[falkordb]'
-
-Graphiti expects OPENAI_API_KEY in the environment.
+Needs a graph DB; FalkorDB is the easiest (``docker run -d -p 6379:6379 falkordb/falkordb:latest``).
+Run: ``python -m baselines.locomo.graphiti_runner --out runs/graphiti.jsonl`` (needs ``OPENAI_API_KEY``).
 """
 
 from __future__ import annotations
@@ -48,12 +23,13 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from baselines.common.config import load_config
+from baselines.common.config import default_model
 from baselines.common.runners import (
     gold_text,
     group_key as _group_key,
     make_retrieval_row,
     safe_id as _safe_id,
+    speaker_line,
     stratified_sample as _stratified_sample,
 )
 from bench.common.types import Hypothesis, Instance
@@ -109,9 +85,7 @@ def _parse_dt(raw: str) -> datetime.datetime:
 
 
 def _make_graphiti():
-    """Construct a Graphiti client wired to FalkorDB + gpt-4o-mini extraction.
-    Connection params come from env (GRAPHITI_FALKORDB_HOST/PORT) with
-    localhost:6379 defaults."""
+    """FalkorDB at GRAPHITI_FALKORDB_HOST/PORT (default localhost:6379)."""
     from graphiti_core import Graphiti
     from graphiti_core.driver.falkordb_driver import FalkorDriver
     from graphiti_core.llm_client.openai_client import OpenAIClient
@@ -159,8 +133,7 @@ async def _run_group_async(
                 content = (t.get("content") or "").strip()
                 if not content:
                     continue
-                speaker = t.get("speaker") or t.get("role") or "user"
-                lines.append(f"{speaker}: {content}")
+                lines.append(speaker_line(t))
             if not lines:
                 continue
             for ci in range(0, len(lines), _TURNS_PER_EPISODE):
@@ -233,7 +206,6 @@ def _answer_group(group_key, instances, reader_model, *,
 
 
 def main(argv: list[str] | None = None) -> int:
-    cfg = load_config([])
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, help="path to write hypotheses jsonl")
     ap.add_argument("--workers", type=int, default=2,
@@ -241,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--sample-per-category", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--reader-model", default=cfg.bench.reader_model)
+    ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--retrieval-only", action="store_true",
                     help="Emit retrieval rows (facts) instead of LLM-composed answers.")

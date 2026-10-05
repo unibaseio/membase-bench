@@ -52,7 +52,9 @@ python -m baselines.locomo.full_context_runner --out runs/full_context.jsonl --w
 
 Common flags: `--limit N` (first N questions), `--sample-per-category N --seed S` (stratified
 sample; the same seed gives every runner the same subset), `--reader-model`, `--resume`.
-mem0, Memori, LangMem and Graphiti also take `--retrieval-only` and `--retrieval-top-k`.
+mem0, Memori, LangMem and Graphiti also take `--retrieval-only` and `--retrieval-top-k`: the
+runner then writes the retrieved memories instead of an answer, to be read and graded by
+`python -m baselines.locomo.mem0_eval.run` (mem0's own reader prompt and judge).
 
 - **mem0**: its vector store has occasional thread-safety issues; keep `--workers` low.
 - **Memori** captures memories as a side effect of chat calls: the runner replays each turn

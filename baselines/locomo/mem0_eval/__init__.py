@@ -2,23 +2,23 @@
 
 This is a port of the prompts and grading logic from
 https://github.com/mem0ai/memory-benchmarks (Apache 2.0 — see LICENSE in
-this directory). We use it to evaluate Membase under the *same*
+this directory). It scores retrieval-only runs under the *same*
 conditions mem0 uses to publish their headline numbers (top_k=200,
 mem0's 7-step Reader prompt, mem0's category-aware judge with partial-
 credit / paraphrase / date-tolerance rules).
 
-Why we need this:
+Why it is a separate scorer:
 
-- The Memori-notebook judge we used previously is stricter on dates and
-  phrasing. Comparing Membase scored under Memori's judge against mem0
-  scored under mem0's judge is not apples-to-apples.
+- The Memori-notebook judge (``bench.locomo.memori_official_eval``) is
+  stricter on dates and phrasing, so a system scored under it is not
+  comparable with mem0 scored under mem0's judge.
 - The mem0 paper's 91.6 LoCoMo number depends heavily on its prompt
   scaffold (200 memories shown chronologically, 7-step CoT in the
   Reader, partial credit in the judge). Numbers under any other
   configuration are not directly comparable.
 
-Vendoring instead of importing keeps Membase a single repository that can
-reproduce the comparison without cloning a second tree.
+Vendoring instead of importing keeps the comparison reproducible without
+cloning a second tree.
 """
 
 from baselines.locomo.mem0_eval.prompts import (

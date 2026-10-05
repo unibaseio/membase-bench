@@ -1,15 +1,7 @@
-"""Full-Context (no retrieval) baseline.
+"""Full-context baseline, the LoCoMo paper's ceiling: the whole conversation and the question go
+to the reader in one chat completion, with no memory store or retrieval.
 
-For each question, send the *entire* conversation + the question to the
-reader LLM in a single chat completion. No memory store, no retrieval —
-just whatever the model can attend to in its context window.
-
-This is the LoCoMo "ceiling" baseline: it shows what raw long-context
-attention can do, and any retrieval-based system has to beat (or
-approach) it without paying the per-query token cost.
-
-Output schema matches the other runners (membase / mem0 / memori) so
-the same memori_official_eval judge can score it.
+Run: ``python -m baselines.locomo.full_context_runner --out runs/full_context.jsonl``.
 """
 
 from __future__ import annotations
@@ -24,8 +16,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from baselines.common.config import load_config
-from baselines.common.runners import stratified_sample as _stratified_sample
+from baselines.common.config import default_model
+from baselines.common.runners import gold_text, speaker_line, stratified_sample as _stratified_sample
 from bench.common.types import Hypothesis, Instance
 from baselines.common.dataset import load
 
@@ -50,13 +42,12 @@ Answer:"""
 
 
 def _format_conversation(inst: Instance) -> str:
-    """Concatenate every session of a haystack as plain text, marked with
-    session date headers so the LLM can use temporal cues."""
+    """Session date headers let the reader use temporal cues."""
     blocks: list[str] = []
     for s in inst.sessions:
         blocks.append(f"--- Session @ {s.session_date} ---")
         for t in s.turns:
-            blocks.append(f"{t.get('role', 'user')}: {t.get('content', '')}")
+            blocks.append(speaker_line(t))
     return "\n".join(blocks)
 
 
@@ -86,24 +77,18 @@ def _answer(inst: Instance, model: str) -> Hypothesis:
         question_id=inst.question.question_id,
         hypothesis=ans,
         category=inst.question.category,
-        gold=(
-            inst.question.answer
-            if isinstance(inst.question.answer, str)
-            else json.dumps(inst.question.answer)
-        ),
+        gold=gold_text(inst),
     )
 
 
 def main(argv: list[str] | None = None) -> int:
-    cfg = load_config([])
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--sample-per-category", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--reader-model",
-                    default=cfg.bench.reader_model)
+    ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
     args = ap.parse_args(argv)
 
