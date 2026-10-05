@@ -1,12 +1,27 @@
-# membase-bench
+<p align="center">
+  <img src="assets/membase-logo.png" width="72" alt="Membase">
+</p>
 
-Benchmark harnesses for [membase-core](https://pypi.org/project/membase-core/), the engine of
+<h1 align="center">membase-bench</h1>
+
+<p align="center">
+  <b>Membase Benchmarks</b><br>
+  Accuracy, context efficiency and latency of the Membase memory engine, measured end to end.
+</p>
+
+<p align="center">
+  <a href="https://www.unibase.com/memory">Website</a> ·
+  <a href="https://unibaseio.gitbook.io/unibase-docs/membase">Docs</a> ·
+  <a href="https://pypi.org/project/membase-core/">membase-core</a> ·
+  <a href="https://pypi.org/project/membase-ai/">membase-ai</a>
+</p>
+
+Harnesses for [membase-core](https://pypi.org/project/membase-core/), the engine of
 [Membase](https://www.unibase.com/memory), Unibase's memory infrastructure for AI agents and apps:
 **LoCoMo**, **LongMemEval_S** and **DMR**, plus competitor baselines on the same data. These are
-the runs behind the numbers on [unibase.com/memory](https://www.unibase.com/memory) (LoCoMo 93.1,
-LongMemEval 92.6, DMR 92.2). The harness drives the engine through its public API only (`CoreMemoryEngine`
-and the `MEMBASE_*` settings). Judges, the DMR reader and the baselines call OpenAI directly,
-never through the engine under test.
+the runs behind the numbers on [unibase.com/memory](https://www.unibase.com/memory). The harness
+drives the engine through its public API only (`CoreMemoryEngine` and the `MEMBASE_*` settings).
+Judges, the DMR reader and the baselines call OpenAI directly, never through the engine under test.
 
 The harness is open source (MIT). membase-core itself is proprietary and is installed from PyPI as
 compiled wheels (CPython 3.12 / 3.13 on Linux, macOS and Windows); its license allows running
@@ -14,13 +29,15 @@ these benchmarks.
 
 ## Results
 
-| Benchmark | Questions | Accuracy | Reader | Judge (`gpt-4o-mini`) |
-|---|---|---|---|---|
-| LoCoMo | 1,540 (categories 1–4) | **93.12%** (run-to-run noise ≈ 0.9pp) | `gpt-4.1-mini` | Memori's CORRECT/WRONG prompt |
-| LongMemEval_S | 500 | **92.60%** (95% CI 90.0–94.6) | `gpt-5.5` | Memori's prompt + LongMemEval's per-type rules |
-| DMR | 500 | **92.20%** (95% CI 89.5–94.2) | `gpt-4o-mini` | MemGPT's prompt (Zep protocol) |
+| Benchmark | Questions | Accuracy | Context tokens per question | Reader | Judge (`gpt-4o-mini`) |
+|---|---|---|---|---|---|
+| LoCoMo | 1,540 (categories 1–4) | **93.12%** (run-to-run noise ≈ 0.9pp) | 6,562 | `gpt-4.1-mini` | Memori's CORRECT/WRONG prompt |
+| LongMemEval_S | 500 | **92.60%** (95% CI 90.0–94.6) | 8,970 | `gpt-5.5` | Memori's prompt + LongMemEval's per-type rules |
+| DMR | 500 | **92.20%** (95% CI 89.5–94.2) | 1,602 | `gpt-4o-mini` | MemGPT's prompt (Zep protocol) |
 
-Episode extraction and the multi-round decider use `gpt-4.1-mini` in all three. For DMR, the Zep
+Context tokens are what the reader is given per question (mean over the efficiency sample, latency
+alongside in REPRODUCE.md). Episode extraction and the multi-round decider use `gpt-4.1-mini` in
+all three. For DMR, the Zep
 paper ([arXiv:2501.13956](https://arxiv.org/abs/2501.13956), Table 1) reports, with the same
 `gpt-4o-mini` reader, 98.2% for Zep and 98.0% for the full conversation in context (with
 `gpt-4-turbo`: Zep 94.8%, MemGPT 93.4%). Per-category tables, efficiency numbers and ablations are
