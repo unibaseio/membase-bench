@@ -25,7 +25,7 @@ tables, efficiency numbers and ablations are in [bench/locomo/REPRODUCE.md](benc
 ## Quick start
 
 ```bash
-uv sync                      # or: pip install -e .   (Python 3.12+; installs membase-core 0.2.1)
+uv sync                      # or: pip install -e .   (Python 3.12+; installs membase-core 0.2.2)
 export OPENAI_API_KEY=...
 export MEMBASE_EPISODE_MODEL=gpt-4.1-mini MEMBASE_DECIDER_MODEL=gpt-4.1-mini MEMBASE_READER_MODEL=gpt-4.1-mini
 

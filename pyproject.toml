@@ -9,7 +9,7 @@ license-files = ["LICENSE", "NOTICE", "baselines/locomo/mem0_eval/LICENSE"]
 dependencies = [
     # The engine under test, pinned to one release. The harness uses only its public API
     # (the names exported by `membase_core`, the CoreMemoryEngine methods, MEMBASE_* settings).
-    "membase-core==0.2.1",
+    "membase-core==0.2.2",
     # Judges, the DMR reader and the baselines call OpenAI directly (bench/common/llm.py).
     "openai>=1.50",
     "pydantic>=2",
