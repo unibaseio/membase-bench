@@ -1,9 +1,11 @@
 # Baselines
 
-Competitor memory systems on the same LoCoMo data as `bench/`: mem0, Memori, LangMem, Zep,
-Graphiti and a full-context ceiling, plus loaders for LongMemEval (`baselines/longmemeval`) and
-BEAM (`baselines/beam`). Every runner writes a `hypotheses.jsonl` with the same schema
-(`question_id`, `hypothesis`, `category`, `gold`), so one judge grades every system.
+Competitor memory systems on the same data as `bench/`: mem0, Memori, LangMem, Zep, Graphiti
+and a full-context ceiling. The runners load questions through `bench/`'s own loaders
+(`BENCH_DATASET=locomo`, the default, or `longmemeval`), so every system answers the same
+questions over the same sessions; LoCoMo category 5 is dropped, as for Membase. Every runner
+writes a `hypotheses.jsonl` with the same schema (`question_id`, `hypothesis`, `category`,
+`gold`), so `bench/`'s judge grades every system.
 
 Membase itself runs through `bench/locomo/ours_core.py` (see the top-level README).
 
@@ -11,9 +13,8 @@ Membase itself runs through `bench/locomo/ours_core.py` (see the top-level READM
 
 ```
 baselines/
-├── common/          shared types, dataset helpers, model defaults (config.py), OpenAI calls (llm.py)
+├── common/          dataset dispatch, model defaults (config.py), OpenAI calls (llm.py), sampling
 └── locomo/
-    ├── adapter.py                 loads baselines/data/locomo10.json (downloaded on first use)
     ├── mem0_runner.py             mem0 (mem0ai)
     ├── mem0_eval/                 mem0's own LoCoMo evaluation scaffold (Apache-2.0, see NOTICE)
     ├── memori_runner.py           Memori
@@ -21,7 +22,6 @@ baselines/
     ├── zep_runner.py              Zep Cloud (needs ZEP_API_KEY)
     ├── graphiti_runner.py         Graphiti (FalkorDB)
     ├── full_context_runner.py     full-context ceiling, no retrieval
-    ├── memori_official_eval.py    LLM judge (Memori notebook prompt) + F1
     └── report.py                  per-category x method table from judged files
 ```
 
@@ -66,15 +66,13 @@ mem0, Memori, LangMem and Graphiti also take `--retrieval-only` and `--retrieval
 ## Judge and report
 
 ```bash
-python -m baselines.locomo.memori_official_eval runs/mem0.jsonl --out runs/mem0.judged.jsonl
+python -m bench.locomo.memori_official_eval runs/mem0.jsonl --out runs/mem0.judged.jsonl
 python -m baselines.locomo.report \
   --label Mem0=runs/mem0.judged.jsonl --label Zep=runs/zep.judged.jsonl \
   runs/mem0.judged.jsonl runs/zep.judged.jsonl
 ```
 
-The judge prompt is byte-identical to Memori's published LoCoMo notebook
-(`ACCURACY_PROMPT`) and reports accuracy (primary) and token F1 (supplementary). This copy
-defaults to `--judge-model gpt-4.1-mini`; `bench/locomo/memori_official_eval.py` is the same
-prompt defaulting to `gpt-4o-mini`, which the published Membase numbers use. Grade every system
-with the same judge model before comparing. `report --show-adversarial` adds LoCoMo category 5, reported separately
-because its scoring axis is inverted.
+The judge is `bench/`'s: Memori's published LoCoMo notebook prompt (`ACCURACY_PROMPT`), accuracy
+(primary) and token F1 (supplementary), `--judge-model gpt-4o-mini` as for the published Membase
+numbers. `report --show-adversarial` adds LoCoMo category 5 for runs that kept it, reported
+separately because its scoring axis is inverted.

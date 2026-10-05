@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from baselines.common.config import load_config
 from baselines.common.runners import stratified_sample as _stratified_sample
-from baselines.common.types import Hypothesis, Instance
+from bench.common.types import Hypothesis, Instance
 from baselines.common.dataset import load
 
 

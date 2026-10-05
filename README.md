@@ -93,12 +93,11 @@ those numbers, not across benchmarks:
 
 ## Baselines
 
-`baselines/` runs other memory systems on the same data: mem0, Memori, LangMem, Zep, Graphiti
-and a full-context ceiling (LoCoMo), with loaders for LongMemEval and BEAM. Install the extra
-for the system you run, e.g. `uv pip install -r pyproject.toml --extra mem0` (one at a time: their
-dependency trees clash), then see [baselines/README.md](baselines/README.md). These runners carry
-their own judge copy (`baselines/locomo/memori_official_eval.py`); grade every system with one
-judge before comparing numbers.
+`baselines/` runs other memory systems on the same questions and sessions, through the loaders
+above: mem0, Memori, LangMem, Zep, Graphiti and a full-context ceiling. Install the extra for the
+system you run, e.g. `uv pip install -r pyproject.toml --extra mem0` (one at a time: their
+dependency trees clash), then see [baselines/README.md](baselines/README.md). The same judges
+grade them.
 
 ## Layout
 

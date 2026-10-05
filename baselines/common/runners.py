@@ -13,7 +13,7 @@ import json
 import random
 from typing import Any
 
-from baselines.common.types import Instance
+from bench.common.types import Instance
 
 
 def stratified_sample(instances: list[Instance], n_per_cat: int, seed: int) -> list[Instance]:

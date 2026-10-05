@@ -38,7 +38,7 @@ from baselines.common.runners import (
     safe_id as _safe_user_id,
     stratified_sample as _stratified_sample,
 )
-from baselines.common.types import Hypothesis, Instance
+from bench.common.types import Hypothesis, Instance
 from baselines.common.dataset import load
 
 

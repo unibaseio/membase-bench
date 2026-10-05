@@ -50,8 +50,8 @@ from baselines.common.runners import (
     group_key as _group_key,
     stratified_sample as _stratified_sample,
 )
-from baselines.common.types import Hypothesis, Instance
-from baselines.locomo.adapter import load
+from bench.common.types import Hypothesis, Instance
+from bench.locomo.adapter import load
 
 
 _ANSWER_PROMPT = """\
