@@ -1,8 +1,10 @@
 # membase-bench
 
-Benchmark harnesses for [membase-core](https://pypi.org/project/membase-core/), the
-Membase memory engine: **LoCoMo**, **LongMemEval_S** and **DMR**, plus competitor baselines on
-the same data. The harness drives the engine through its public API only (`CoreMemoryEngine`
+Benchmark harnesses for [membase-core](https://pypi.org/project/membase-core/), the engine of
+[Membase](https://www.unibase.com/memory), Unibase's memory infrastructure for AI agents and apps:
+**LoCoMo**, **LongMemEval_S** and **DMR**, plus competitor baselines on the same data. These are
+the runs behind the numbers on [unibase.com/memory](https://www.unibase.com/memory) (LoCoMo 93.1,
+LongMemEval 92.6, DMR 92.2). The harness drives the engine through its public API only (`CoreMemoryEngine`
 and the `MEMBASE_*` settings). Judges, the DMR reader and the baselines call OpenAI directly,
 never through the engine under test.
 
