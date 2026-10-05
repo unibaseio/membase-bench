@@ -14,10 +14,9 @@ Membase itself runs through `bench/locomo/ours_core.py` (see the top-level READM
 
 ```
 baselines/
-├── common/          dataset dispatch, model defaults (config.py), OpenAI calls (llm.py), sampling
+├── common/          dataset dispatch, model defaults (config.py), sampling and speaker helpers
 └── locomo/
     ├── mem0_runner.py             mem0 (mem0ai)
-    ├── mem0_eval/                 mem0's own LoCoMo evaluation scaffold (Apache-2.0, see NOTICE)
     ├── memori_runner.py           Memori
     ├── langmem_runner.py          LangMem (langmem + langgraph)
     ├── zep_runner.py              Zep Cloud (needs ZEP_API_KEY)
@@ -37,8 +36,8 @@ export MEMBASE_BENCH_MODEL=gpt-4o                  # the runners' default reader
 ```
 
 The baseline readers call OpenAI directly (`chat.completions.create`, max_tokens 128, the
-provider's default temperature); the judge and mem0_eval go through `bench/common/llm.py`
-(temperature 0, retries on transient errors). `OPENAI_BASE_URL` points them at an
+provider's default temperature); the judge goes through `bench/common/llm.py` (temperature 0,
+retries on transient errors). `OPENAI_BASE_URL` points them at an
 OpenAI-compatible endpoint. Each system's own extraction model is fixed in its runner
 (`gpt-4o-mini`; Graphiti `gpt-4o`); `--reader-model` sets only the answering model.
 
@@ -55,9 +54,6 @@ python -m baselines.locomo.full_context_runner --out runs/full_context.jsonl --w
 
 Common flags: `--limit N` (first N questions), `--sample-per-category N --seed S` (stratified
 sample; the same seed gives every runner the same subset), `--reader-model`, `--resume`.
-mem0, Memori, LangMem and Graphiti also take `--retrieval-only` and `--retrieval-top-k`: the
-runner then writes the retrieved memories instead of an answer, to be read and graded by
-`python -m baselines.locomo.mem0_eval.run` (mem0's own reader prompt and judge).
 
 - **mem0**: its vector store has occasional thread-safety issues; keep `--workers` low.
 - **Memori** captures memories as a side effect of chat calls: the runner replays each turn
@@ -81,7 +77,4 @@ python -m baselines.locomo.report \
 
 The judge is `bench/`'s: Memori's published LoCoMo notebook prompt (`ACCURACY_PROMPT`), accuracy
 (primary) and token F1 (supplementary), `--judge-model gpt-4o-mini` as for the published Membase
-numbers. `report --show-adversarial` adds LoCoMo category 5, reported separately because its
-scoring axis is inverted; only `bench.locomo.ours_core --include-adversarial` keeps it, the
-baseline runners always drop it. `--retrieval-only` output is graded by mem0_eval instead, with
-`--judge-model` defaulting to `MEMBASE_BENCH_MODEL` (gpt-4o).
+numbers.

@@ -21,7 +21,6 @@ from baselines.common.config import default_model
 from baselines.common.runners import (
     gold_text,
     group_key as _group_key,
-    make_retrieval_row,
     speaker_line,
     speaker_of,
     stratified_sample as _stratified_sample,
@@ -85,8 +84,7 @@ def _ingest_turns_via_provider(client, turns: list[dict],
             print(f"[memori] provider chat failed: {exc}", file=sys.stderr)
 
 
-def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
-                  retrieval_only: bool, retrieval_top_k: int) -> list:
+def _answer_group(group_key: str, instances: list[Instance], reader_model: str) -> list:
     if not instances:
         return []
     try:
@@ -113,50 +111,24 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
         out = []
         for inst in instances:
             try:
-                rows = mem.recall(
-                    inst.question.question,
-                    limit=retrieval_top_k if retrieval_only else 10,
-                ) or []
+                rows = mem.recall(inst.question.question, limit=10) or []
                 facts: list[str] = []
-                memories: list[dict] = []
                 for r in rows:
                     if hasattr(r, "content"):
-                        text = r.content
-                        score = float(getattr(r, "rank_score", getattr(r, "similarity", 0.0)) or 0.0)
-                        rid = str(getattr(r, "id", ""))
-                        created = str(getattr(r, "date_created", ""))
+                        facts.append(r.content)
                     elif isinstance(r, dict):
-                        text = r.get("content") or r.get("fact") or r.get("text") or json.dumps(r)
-                        score = float(r.get("rank_score") or r.get("score") or 0.0)
-                        rid = str(r.get("id", ""))
-                        created = str(r.get("date_created", ""))
+                        facts.append(r.get("content") or r.get("fact") or r.get("text") or json.dumps(r))
                     else:
-                        text = str(r)
-                        score = 0.0
-                        rid = ""
-                        created = ""
-                    facts.append(text)
-                    memories.append({"memory": text, "score": score, "id": rid,
-                                     "created_at": created, "source": "memori"})
-
-                if retrieval_only:
-                    out.append(make_retrieval_row(inst, memories=memories))
-                else:
-                    ans = _compose_answer(reader_model, inst.question.question, facts)
-                    out.append(asdict(Hypothesis(
-                        question_id=inst.question.question_id,
-                        hypothesis=ans,
-                        category=inst.question.category,
-                        gold=gold_text(inst),
-                    )))
+                        facts.append(str(r))
+                ans = _compose_answer(reader_model, inst.question.question, facts)
             except Exception as exc:
-                if not retrieval_only:
-                    out.append(asdict(Hypothesis(
-                        question_id=inst.question.question_id,
-                        hypothesis=f"ERROR: {type(exc).__name__}: {exc}",
-                        category=inst.question.category,
-                        gold=str(inst.question.answer),
-                    )))
+                ans = f"ERROR: {type(exc).__name__}: {exc}"
+            out.append(asdict(Hypothesis(
+                question_id=inst.question.question_id,
+                hypothesis=ans,
+                category=inst.question.category,
+                gold=gold_text(inst),
+            )))
         return out
     finally:
         try:
@@ -179,9 +151,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
-    ap.add_argument("--retrieval-only", action="store_true",
-                    help="Emit retrieval rows (memories list) instead of LLM answers.")
-    ap.add_argument("--retrieval-top-k", type=int, default=200)
     args = ap.parse_args(argv)
 
     instances = load(limit=args.limit)
@@ -222,8 +191,7 @@ def main(argv: list[str] | None = None) -> int:
         for line in kept_lines:
             fout.write(line + "\n")
         futs = {
-            pool.submit(_answer_group, key, group, args.reader_model,
-                        args.retrieval_only, args.retrieval_top_k): key
+            pool.submit(_answer_group, key, group, args.reader_model): key
             for key, group in grouped.items()
         }
         for fut in tqdm(as_completed(futs), total=len(futs), desc="memori:haystacks"):

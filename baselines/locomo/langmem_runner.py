@@ -18,7 +18,6 @@ from baselines.common.runners import (
     chat_roles,
     gold_text,
     group_key as _group_key,
-    make_retrieval_row,
     safe_id as _safe_ns,
     speaker_of,
     stratified_sample as _stratified_sample,
@@ -76,9 +75,7 @@ def _ingest_with_langmem(manager, namespace: tuple, turns: list[dict], roles: di
         print(f"[langmem] manager.invoke failed: {exc}", file=sys.stderr)
 
 
-def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
-                   *, retrieval_only: bool = False, retrieval_top_k: int = 200,
-                   ) -> list[Hypothesis] | list[dict]:
+def _answer_group(group_key: str, instances: list[Instance], reader_model: str) -> list[Hypothesis]:
     if not instances:
         return []
     try:
@@ -134,31 +131,10 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
             return f"{subj}: {fact}" + (f" (when: {when})" if when else "")
         return json.dumps(val)
 
-    out: list[Hypothesis] | list[dict] = []
+    out: list[Hypothesis] = []
     roles = chat_roles(instances[0])
     for s in instances[0].sessions:
         _ingest_with_langmem(manager, namespace, s.turns, roles)
-
-    if retrieval_only:
-        rows: list[dict] = []
-        for inst in instances:
-            try:
-                hits = store.search(namespace, query=inst.question.question,
-                                     limit=retrieval_top_k)
-                memories = [{
-                    "memory": _hit_to_text(h),
-                    "score": float(getattr(h, "score", 0.0) or 0.0),
-                    "id": str(getattr(h, "key", "")),
-                    "created_at": "",
-                    "source": "langmem",
-                } for h in (hits or [])]
-            except Exception as exc:
-                rows.append(make_retrieval_row(
-                    inst, memories=None, error=f"{type(exc).__name__}: {exc}",
-                ))
-                continue
-            rows.append(make_retrieval_row(inst, memories=memories))
-        return rows
 
     for inst in instances:
         try:
@@ -185,9 +161,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
-    ap.add_argument("--retrieval-only", action="store_true",
-                    help="Emit retrieved memories instead of LLM answers (mem0-eval compatible).")
-    ap.add_argument("--retrieval-top-k", type=int, default=200)
     args = ap.parse_args(argv)
 
     instances = load(limit=args.limit)
@@ -228,17 +201,14 @@ def main(argv: list[str] | None = None) -> int:
         for line in kept_lines:
             fout.write(line + "\n")
         futs = {
-            pool.submit(_answer_group, key, group, args.reader_model,
-                         retrieval_only=args.retrieval_only,
-                         retrieval_top_k=args.retrieval_top_k): key
+            pool.submit(_answer_group, key, group, args.reader_model): key
             for key, group in grouped.items()
         }
         for fut in tqdm(as_completed(futs), total=len(futs), desc="langmem:haystacks"):
             group_results = fut.result()
             results.extend(group_results)
             for h in group_results:
-                rec = h if isinstance(h, dict) else asdict(h)
-                fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                fout.write(json.dumps(asdict(h), ensure_ascii=False) + "\n")
             fout.flush()
 
     print(

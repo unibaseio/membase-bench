@@ -44,7 +44,7 @@ def _load_judged(path: Path) -> list[dict]:
     return rows
 
 
-def _aggregate(rows: list[dict]) -> tuple[dict[str, Score], Score, Score]:
+def _aggregate(rows: list[dict]) -> tuple[dict[str, Score], Score]:
     by_cat: dict[str, Score] = collections.defaultdict(Score)
     for r in rows:
         cat = r.get("category", "")
@@ -61,8 +61,7 @@ def _aggregate(rows: list[dict]) -> tuple[dict[str, Score], Score, Score]:
             main.n += s.n
             main.correct += s.correct
             main.f1_sum += s.f1_sum
-    adv = by_cat.get("adversarial") or Score()
-    return by_cat, main, adv
+    return by_cat, main
 
 
 def _label_from_path(p: Path) -> str:
@@ -108,21 +107,19 @@ def main(argv: list[str] | None = None) -> int:
                     help="override label: --label Membase=runs/membase.judged.jsonl")
     ap.add_argument("--metric", choices=["acc", "f1"], default="acc",
                     help="primary metric to display (default: acc, matches the LoCoMo paper)")
-    ap.add_argument("--show-adversarial", action="store_true",
-                    help="add a separate row for adversarial (gold=null) questions")
     args = ap.parse_args(argv)
 
     overrides = _parse_label_args(args.label)
 
-    rows: list[tuple[str, dict[str, Score], Score, Score]] = []
+    rows: list[tuple[str, dict[str, Score], Score]] = []
     for p in args.paths:
         path = Path(p)
         if not path.exists():
             print(f"warning: {path} does not exist, skipping", file=sys.stderr)
             continue
         label = overrides.get(p) or _label_from_path(path)
-        by_cat, main, adv = _aggregate(_load_judged(path))
-        rows.append((label, by_cat, main, adv))
+        by_cat, main = _aggregate(_load_judged(path))
+        rows.append((label, by_cat, main))
 
     if not rows:
         return 1
@@ -130,20 +127,12 @@ def main(argv: list[str] | None = None) -> int:
     print()
     print(_format_header())
     print("-" * len(_format_header()))
-    for label, by_cat, main, _adv in rows:
+    for label, by_cat, main in rows:
         print(_format_row(label, by_cat, main, metric=args.metric))
 
-    if args.show_adversarial:
-        any_adv = any(adv.n for *_, adv in rows)
-        if any_adv:
-            print()
-            print("adversarial (gold=null trick questions, lower is the correct outcome)")
-            for label, _by_cat, _main, adv in rows:
-                print(f"  {label:<20s}  n={adv.n:3d}  acc={adv.acc:6.2f}  f1={adv.f1:6.2f}")
-
     print()
-    print("instance counts (Single+Multi+Open+Temporal, excluding adversarial):")
-    for label, _by_cat, main, _adv in rows:
+    print("instance counts (Single+Multi+Open+Temporal):")
+    for label, _by_cat, main in rows:
         print(f"  {label:<20s}  n={main.n}")
 
     return 0

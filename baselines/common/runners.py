@@ -5,7 +5,6 @@ from __future__ import annotations
 import collections
 import json
 import random
-from typing import Any
 
 from bench.common.types import Instance
 
@@ -37,21 +36,6 @@ def safe_id(raw: str) -> str:
 def gold_text(inst: Instance) -> str:
     ans = inst.question.answer
     return ans if isinstance(ans, str) else json.dumps(ans)
-
-
-def make_retrieval_row(inst: Instance, memories: list[dict[str, Any]] | None,
-                        error: str | None = None) -> dict[str, Any]:
-    row: dict[str, Any] = {
-        "question_id": inst.question.question_id,
-        "category": inst.question.category,
-        "question": inst.question.question,
-        "gold": gold_text(inst),
-        "reference_date": inst.question.question_date,
-        "memories": memories or [],
-    }
-    if error:
-        row["error"] = error
-    return row
 
 
 def speaker_of(turn: dict) -> str:

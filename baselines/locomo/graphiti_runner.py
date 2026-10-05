@@ -21,7 +21,6 @@ from baselines.common.config import default_model
 from baselines.common.runners import (
     gold_text,
     group_key as _group_key,
-    make_retrieval_row,
     safe_id as _safe_id,
     speaker_line,
     stratified_sample as _stratified_sample,
@@ -91,8 +90,7 @@ def _make_graphiti():
 
 async def _run_group_async(
     group_key: str, instances: list[Instance], reader_model: str,
-    retrieval_only: bool, retrieval_top_k: int,
-) -> list:
+) -> list[Hypothesis]:
     try:
         from graphiti_core.nodes import EpisodeType
     except ImportError as e:
@@ -132,29 +130,6 @@ async def _run_group_async(
                     print(f"[graphiti] add_episode failed on {s.session_id}#{ci}: {exc}",
                           file=sys.stderr)
 
-        if retrieval_only:
-            out_rows: list[dict] = []
-            for inst in instances:
-                try:
-                    edges = await g.search(
-                        inst.question.question, group_ids=[gid],
-                        num_results=retrieval_top_k,
-                    )
-                    memories = [{
-                        "memory": getattr(e, "fact", str(e)),
-                        "score": 0.0,
-                        "id": str(getattr(e, "uuid", "")),
-                        "created_at": (
-                            getattr(e, "valid_at", "") or getattr(e, "created_at", "") or ""
-                        ).__str__(),
-                        "source": "graphiti",
-                    } for e in (edges or [])]
-                    out_rows.append(make_retrieval_row(inst, memories=memories))
-                except Exception as exc:
-                    out_rows.append(make_retrieval_row(
-                        inst, memories=None, error=f"{type(exc).__name__}: {exc}"))
-            return out_rows
-
         out: list[Hypothesis] = []
         for inst in instances:
             try:
@@ -179,10 +154,8 @@ async def _run_group_async(
             pass
 
 
-def _answer_group(group_key, instances, reader_model, *,
-                  retrieval_only=False, retrieval_top_k=200):
-    return asyncio.run(_run_group_async(
-        group_key, instances, reader_model, retrieval_only, retrieval_top_k))
+def _answer_group(group_key, instances, reader_model):
+    return asyncio.run(_run_group_async(group_key, instances, reader_model))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -195,9 +168,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
-    ap.add_argument("--retrieval-only", action="store_true",
-                    help="Emit retrieval rows (facts) instead of LLM-composed answers.")
-    ap.add_argument("--retrieval-top-k", type=int, default=200)
     args = ap.parse_args(argv)
 
     instances = load(limit=args.limit)
@@ -236,17 +206,14 @@ def main(argv: list[str] | None = None) -> int:
         for line in kept_lines:
             fout.write(line + "\n")
         futs = {
-            pool.submit(_answer_group, key, group, args.reader_model,
-                        retrieval_only=args.retrieval_only,
-                        retrieval_top_k=args.retrieval_top_k): key
+            pool.submit(_answer_group, key, group, args.reader_model): key
             for key, group in grouped.items()
         }
         for fut in tqdm(as_completed(futs), total=len(futs), desc="graphiti:haystacks"):
             group_results = fut.result()
             results.extend(group_results)
             for h in group_results:
-                rec = h if isinstance(h, dict) else asdict(h)
-                fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                fout.write(json.dumps(asdict(h), ensure_ascii=False) + "\n")
             fout.flush()
 
     print(f"[graphiti] wrote {len(results)} new + {len(done_ids)} resumed "

@@ -17,7 +17,6 @@ from baselines.common.config import default_model
 from baselines.common.runners import (
     gold_text,
     group_key as _group_key,
-    make_retrieval_row,
     safe_id as _safe_user_id,
     stratified_sample as _stratified_sample,
 )
@@ -54,9 +53,7 @@ def _compose_answer(model: str, query: str, memories: list[str]) -> str:
 
 
 def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
-                   *, retrieval_only: bool = False, retrieval_top_k: int = 200,
-                   persist: bool = False,
-                   ) -> list[Hypothesis] | list[dict]:
+                  *, persist: bool = False) -> list[Hypothesis]:
     if not instances:
         return []
     try:
@@ -113,32 +110,6 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
                 print(f"[mem0] add failed on {s.session_id}: {exc}",
                       file=sys.stderr)
 
-        if retrieval_only:
-            out_rows: list[dict] = []
-            for inst in instances:
-                try:
-                    results = mem.search(
-                        inst.question.question,
-                        filters={"user_id": user_id},
-                        top_k=retrieval_top_k,
-                    )
-                    rows = results.get("results", results) if isinstance(results, dict) else results
-                    memories = [{
-                        "memory": r.get("memory") or r.get("text") or str(r),
-                        "score": float(r.get("score", 0.0)) if isinstance(r, dict) else 0.0,
-                        "id": str(r.get("id", "")) if isinstance(r, dict) else "",
-                        "created_at": r.get("created_at", "") if isinstance(r, dict) else "",
-                        "source": "mem0",
-                    } for r in (rows or [])]
-                except Exception as exc:
-                    out_rows.append(make_retrieval_row(
-                        inst, memories=None,
-                        error=f"{type(exc).__name__}: {exc}",
-                    ))
-                    continue
-                out_rows.append(make_retrieval_row(inst, memories=memories))
-            return out_rows
-
         out: list[Hypothesis] = []
         for inst in instances:
             try:
@@ -179,10 +150,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--reader-model", default=default_model())
     ap.add_argument("--resume", action="store_true")
-    ap.add_argument("--retrieval-only", action="store_true",
-                    help="Emit retrieval rows (memories list) instead of LLM-composed answers.")
-    ap.add_argument("--retrieval-top-k", type=int, default=200,
-                    help="When --retrieval-only, how many top memories to emit per question.")
     ap.add_argument("--persist", action="store_true",
                     help="Keep mem0's qdrant store between runs; skip ingest if user_id already populated.")
     args = ap.parse_args(argv)
@@ -225,18 +192,14 @@ def main(argv: list[str] | None = None) -> int:
         for line in kept_lines:
             fout.write(line + "\n")
         futs = {
-            pool.submit(_answer_group, key, group, args.reader_model,
-                         retrieval_only=args.retrieval_only,
-                         retrieval_top_k=args.retrieval_top_k,
-                         persist=args.persist): key
+            pool.submit(_answer_group, key, group, args.reader_model, persist=args.persist): key
             for key, group in grouped.items()
         }
         for fut in tqdm(as_completed(futs), total=len(futs), desc="mem0:haystacks"):
             group_results = fut.result()
             results.extend(group_results)
             for h in group_results:
-                rec = h if isinstance(h, dict) else asdict(h)
-                fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                fout.write(json.dumps(asdict(h), ensure_ascii=False) + "\n")
             fout.flush()
 
     print(
