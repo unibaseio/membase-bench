@@ -1,7 +1,4 @@
-"""Judge and reader calls for the baselines, through the bench-owned OpenAI client.
-
-The endpoint comes from the environment (``OPENAI_API_KEY``, ``OPENAI_BASE_URL``).
-"""
+"""OpenAI calls for the baselines, through bench's client."""
 
 from __future__ import annotations
 

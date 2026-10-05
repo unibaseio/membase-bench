@@ -1,10 +1,4 @@
-"""Graphiti baseline (https://github.com/getzep/graphiti), Zep's open-source temporal knowledge
-graph: one Graphiti ``group_id`` per conversation, sessions added as short ``message`` episodes
-anchored at the session date, each question answered over the fact edges ``search`` returns.
-
-Needs a graph DB; FalkorDB is the easiest (``docker run -d -p 6379:6379 falkordb/falkordb:latest``).
-Run: ``python -m baselines.locomo.graphiti_runner --out runs/graphiti.jsonl`` (needs ``OPENAI_API_KEY``).
-"""
+"""Graphiti baseline (https://github.com/getzep/graphiti)."""
 
 from __future__ import annotations
 
@@ -48,11 +42,7 @@ Question: {question}
 
 Answer:"""
 
-# Graphiti's entity/edge extraction needs a capable model: gpt-4o-mini
-# degenerates into a runaway integer sequence on longer episodes, emitting
-# malformed JSON that fails ExtractedEntities validation. gpt-4o is the
-# realistic Graphiti extractor (Zep ships 4o-class). Embedder + the answer
-# reader stay aligned with the other runners.
+# gpt-4o-mini emits malformed entity JSON on Graphiti's extraction prompts.
 _EXTRACT_MODEL = "gpt-4o"
 _EMBED_MODEL = "text-embedding-3-small"
 
@@ -73,8 +63,6 @@ def _compose_answer(model: str, query: str, facts: list[str]) -> str:
 
 
 def _parse_dt(raw: str) -> datetime.datetime:
-    """LoCoMo session_date is free-form (e.g. '7 May 2023', '2023-05-07').
-    Fall back to a fixed epoch so add_episode always gets a tz-aware dt."""
     raw = (raw or "").strip()
     for fmt in ("%Y-%m-%d", "%d %B %Y", "%d %b %Y", "%B %d, %Y", "%b %d, %Y", "%Y/%m/%d"):
         try:
@@ -85,7 +73,6 @@ def _parse_dt(raw: str) -> datetime.datetime:
 
 
 def _make_graphiti():
-    """FalkorDB at GRAPHITI_FALKORDB_HOST/PORT (default localhost:6379)."""
     from graphiti_core import Graphiti
     from graphiti_core.driver.falkordb_driver import FalkorDriver
     from graphiti_core.llm_client.openai_client import OpenAIClient
@@ -113,18 +100,12 @@ async def _run_group_async(
             "graphiti baseline requires `pip install 'graphiti-core[falkordb]'`"
         ) from e
 
-    # Unique group per run so re-runs don't read a half-built graph.
     gid = f"{_safe_id(group_key)}-{uuid.uuid4().hex[:8]}"
     g = _make_graphiti()
     try:
         await g.build_indices_and_constraints()
 
-        # Ingest in small episodes. Graphiti runs LLM entity+edge
-        # extraction per episode; feeding a whole LoCoMo session (20-50
-        # turns) makes gpt-4o-mini emit a huge entity JSON that overflows
-        # and fails to parse. Batch ~6 turns per episode so each
-        # extraction stays small and well-formed. reference_time anchors
-        # every chunk to the session date (Graphiti's temporal feature).
+        # Short episodes keep Graphiti's per-episode extraction JSON well-formed.
         _TURNS_PER_EPISODE = 6
         for s in instances[0].sessions:
             ref = _parse_dt(s.session_date)
@@ -200,7 +181,6 @@ async def _run_group_async(
 
 def _answer_group(group_key, instances, reader_model, *,
                   retrieval_only=False, retrieval_top_k=200):
-    # One event loop per worker thread.
     return asyncio.run(_run_group_async(
         group_key, instances, reader_model, retrieval_only, retrieval_top_k))
 

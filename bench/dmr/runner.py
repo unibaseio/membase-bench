@@ -1,5 +1,4 @@
-"""Run DMR through the Membase engine (membase-core public API): retrieve with
-``engine.search`` and answer with Zep's prompt verbatim on gpt-4o-mini, outside the engine."""
+"""Run DMR through membase-core; answers use Zep's prompt on gpt-4o-mini."""
 
 from __future__ import annotations
 

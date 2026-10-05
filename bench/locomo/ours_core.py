@@ -1,9 +1,4 @@
-"""Run LoCoMo through the Membase engine (membase-core public API).
-
-Published configuration: episodes are extracted for each conversation's ``speaker_a`` only and
-search is scoped to that owner; the reader uses the ``answer_locomo`` prompt with no
-"Current Date" line (LoCoMo has no per-question date).
-"""
+"""Run LoCoMo through membase-core."""
 
 from __future__ import annotations
 
@@ -52,7 +47,6 @@ def _safe_key(raw: str) -> str:
 
 
 def _answer_one(engine: CoreMemoryEngine, inst: Instance) -> Hypothesis:
-    """Answer one question, recording the session ids retrieval packed for the reader."""
     retrieved_sessions: list[str] = []
     retrieved_observations = 0
     try:
@@ -92,8 +86,7 @@ def _answer_group(
 ) -> list[Hypothesis]:
     db_path = os.path.join(work_dir, f"{_safe_key(group_key)}.db")
     idx_path = db_path + ".faiss"
-    # Written only after ingest completes; a bare db file may be a half-ingested
-    # leftover, so only this marker licenses reusing a store.
+    # Written after ingest completes; only this marks a store as reusable.
     done_marker = db_path + ".ingested"
     try:
         with CoreMemoryEngine(db_path=db_path, index_path=idx_path) as engine:
@@ -107,12 +100,10 @@ def _answer_group(
                         }
                         for s in instances[0].sessions
                     ],
-                    # One episode owner per conversation (speaker_a), as Membase's adapter.
                     episode_owner=instances[0].question.extra.get("eval_owner") or None,
                 )
                 if keep_store:
                     Path(done_marker).write_text("ok")
-            # The engine is read-only past ingest, so questions in a group run in parallel.
             out: list[Hypothesis] = [None] * len(instances)  # type: ignore[list-item]
             with ThreadPoolExecutor(max_workers=max(1, question_workers)) as qpool:
                 futs = {
@@ -123,7 +114,6 @@ def _answer_group(
                     out[futs[fut]] = fut.result()
             return out
     finally:
-        # Only sweep a scratch store; with --workdir the store survives for the next arm.
         if not keep_store:
             for path in (db_path, idx_path, db_path + "-wal", db_path + "-shm", done_marker):
                 try:
@@ -136,7 +126,6 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, help="path to write hypotheses jsonl")
     ap.add_argument("--workers", type=int, default=4, help="conversation groups in parallel")
-    # Questions in parallel within one group; the two pools multiply (4 x 8 = 32 in flight).
     ap.add_argument("--question-workers", type=int, default=8)
     ap.add_argument(
         "--include-adversarial",

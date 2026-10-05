@@ -1,8 +1,4 @@
-"""LongMemEval_S loader: one instance (own haystack, own store) per question.
-
-Sessions are named positionally, ``session_<k>`` for ``haystack_sessions[k]``; gold cites
-``answer_session_ids`` and ``gold_sessions`` inverts that mapping (first occurrence wins).
-"""
+"""LongMemEval_S loader: one haystack per question."""
 
 from __future__ import annotations
 
@@ -19,7 +15,6 @@ DATA_URL = "https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/
 EVAL_OWNER = "user"
 
 _DATE_FORMATS = ("%Y/%m/%d (%a) %H:%M", "%Y/%m/%d %H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d")
-# Undated sessions fall back to a synthetic clock, as the reference does; only order matters.
 _BASE = datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
 
 
@@ -91,7 +86,6 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
 
 
 def gold_sessions(question: Question) -> set[str]:
-    """``answer_session_ids`` → our positional session ids; first occurrence wins."""
     prefix = question.question_id.rsplit("-q", 1)[0]
     pos: dict[str, int] = {}
     for k, s in enumerate(question.extra.get("haystack_session_ids") or []):

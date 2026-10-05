@@ -1,35 +1,4 @@
-"""Mem0-style LoCoMo evaluator.
-
-Consumes retrieval-only JSONL (each line carries the question + the top-K
-retrieved memories from any memory system), runs mem0's official 7-step
-ANSWER_GENERATION_PROMPT to compose an answer, and grades it with mem0's
-unified JUDGE_PROMPT (partial credit + paraphrase + 14-day date
-tolerance).
-
-This produces numbers directly comparable to mem0's published headline
-results (e.g. their 91.6 LoCoMo overall is gpt-5 reader + gpt-5 judge
-under exactly this scaffold).
-
-Input JSONL schema (one line per question):
-
-  {
-    "question_id": str,
-    "category":    str,    # one of: single_hop, multi_hop, open_domain,
-                           #         temporal, adversarial
-    "question":    str,
-    "gold":        str,
-    "memories":    [ {"memory": str, "created_at": iso, "score": float}, ... ],
-    "reference_date": str  # optional; e.g. "May 7, 2023"
-  }
-
-Output JSONL is one line per question with fields:
-  question_id, category, question, gold, generated_answer, judgment
-  (CORRECT / WRONG), correct (bool), reasoning (judge's one-liner).
-
-Usage:
-  python -m baselines.locomo.mem0_eval.run RETRIEVAL.jsonl --out JUDGED.jsonl \\
-    --answerer-model gpt-4o --judge-model gpt-4o --top-k 200
-"""
+"""Grade retrieval-only baseline output with mem0's reader and judge."""
 
 from __future__ import annotations
 
@@ -53,9 +22,6 @@ from baselines.locomo.mem0_eval.prompts import (
 )
 
 
-# We use string category names (single_hop / multi_hop / …) on disk; mem0
-# uses integer ids (1=multi-hop, 2=temporal, 3=open-domain, 4=single-hop,
-# 5=adversarial).
 _NAME_TO_ID = {
     "multi_hop":    1,
     "temporal":     2,
@@ -71,7 +37,6 @@ def _category_id(name_or_id: str | int) -> int:
     s = str(name_or_id).strip().lower().replace("-", "_")
     if s in _NAME_TO_ID:
         return _NAME_TO_ID[s]
-    # Tolerant fallback: try matching the display names too.
     for cid, dname in CATEGORY_NAMES.items():
         if s in dname.lower().replace("-", "_"):
             return cid
@@ -79,8 +44,6 @@ def _category_id(name_or_id: str | int) -> int:
 
 
 def _strip_answer_marker(generated: str) -> str:
-    """mem0's reader appends 'ANSWER: ...' at the end after the 7-step CoT.
-    Pull just the answer if present; otherwise return the whole text."""
     if "ANSWER:" in generated:
         return generated.rsplit("ANSWER:", 1)[-1].strip()
     return generated.strip()
@@ -92,7 +55,6 @@ def _generate_answer(model: str, question: str, memories: list[dict],
     prompt = get_answer_generation_prompt(
         question=question, search_results=memories, reference_date=reference_date,
     )
-    # mem0 sends user-only; chat_text accepts system="" for the same shape.
     return _strip_answer_marker(
         chat_text(model, system="", user=prompt, max_tokens=1024)
     )
@@ -150,8 +112,6 @@ def _summarise(rows: list[dict]) -> None:
     for r in rows:
         by_cat[r["category"]].append(r)
 
-    # Print scoring table — mem0 excludes adversarial from headline;
-    # we report it in a separate row to mirror their convention.
     headline_cats = ("single_hop", "multi_hop", "open_domain", "temporal")
     print()
     print(f"  {'category':<14s} {'Acc':>7s}  {'n':>5s}")
@@ -233,7 +193,6 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[mem0-eval] wrote {len(judged)} new + {len(done)} resumed in "
           f"{time.time() - t0:.0f}s -> {out_path}", file=sys.stderr)
 
-    # Reload everything (resumed + fresh) for the summary.
     all_rows = [json.loads(line) for line in out_path.read_text().splitlines() if line.strip()]
     _summarise(all_rows)
     return 0

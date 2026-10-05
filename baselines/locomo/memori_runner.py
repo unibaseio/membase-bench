@@ -1,15 +1,4 @@
-"""Memori v3 baseline (https://github.com/GibsonAI/memori). Memori captures memories as a side
-effect of OpenAI chat calls: ``Memori().llm.register`` patches an ``openai.OpenAI`` client, every
-``chat.completions.create`` writes facts to Memori's storage in the background, and
-``mem.recall(query)`` returns them as ``FactSearchResult`` rows.
-
-Memori runs in BYODB mode on an isolated per-haystack sqlite file, so it never touches the cloud
-(no ``MEMORI_API_KEY``). If only ``memorisdk`` is installable, alias its dist-info to ``memori``
-(copy ``memorisdk-3.X.Y.dist-info`` to ``memori-3.X.Y.dist-info`` and set ``Name: memori`` in its
-METADATA).
-
-Run: ``python -m baselines.locomo.memori_runner --out runs/memori.jsonl`` (needs ``OPENAI_API_KEY``).
-"""
+"""Memori v3 baseline (https://github.com/GibsonAI/memori)."""
 
 from __future__ import annotations
 
@@ -40,8 +29,6 @@ from baselines.common.runners import (
 from bench.common.types import Hypothesis, Instance
 from baselines.common.dataset import load
 
-# Memori prints a deprecation warning about the legacy package name on import;
-# silence it so bench output stays clean.
 warnings.filterwarnings("ignore", message=".*legacy package name.*")
 
 
@@ -75,15 +62,6 @@ def _compose_answer(model: str, query: str, facts: list[str]) -> str:
 
 def _ingest_turns_via_provider(client, turns: list[dict],
                                 session_date: str | None = None) -> None:
-    """Drive the Memori-patched OpenAI client with each turn so it captures
-    the conversation.
-
-    LoCoMo carries free-form speaker names ("John"/"Maria"); OpenAI's chat
-    API only accepts user/assistant/system/... so we normalise to a 2-speaker
-    alternation, keep the original speaker name as a content prefix, and
-    prefix the session date so memori's fact-extraction LLM anchors to the
-    correct historical date instead of datetime.now().
-    """
     speaker_to_role: dict[str, str] = {}
     history: list[dict] = []
     for t in turns:
@@ -100,7 +78,7 @@ def _ingest_turns_via_provider(client, turns: list[dict],
         try:
             client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=history[-8:],  # short context window for the fake reply
+                messages=history[-8:],
                 max_tokens=8,
             )
         except Exception as exc:
@@ -122,10 +100,9 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
     db_path = tempfile.mktemp(prefix=f"memori-{group_key}-", suffix=".db")
     mem = Memori(conn=lambda: sqlite3.connect(db_path))
     mem.set_session(namespace)
-    # BYODB doesn't auto-migrate; Builder.execute() creates the schema.
+    # BYODB does not migrate; this creates the schema.
     Builder(mem.config).disable_banner().execute()
 
-    # v3 patches an openai client to capture memories on every chat call.
     client = OpenAI()
     mem.llm.register(client).attribution(entity_id="locomo-user", process_id="locomo-proc")
 

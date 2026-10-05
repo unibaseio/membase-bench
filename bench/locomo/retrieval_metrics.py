@@ -1,10 +1,4 @@
-"""Evidence-recall metrics for LoCoMo, scored from gold session ids with no LLM call.
-
-On a judged file, wrong answers are also split into retrieval misses (gold session never
-reached the reader) and reader misses (gold session was in the context).
-
-    python -m bench.locomo.retrieval_metrics runs/<arm>.judged.jsonl
-"""
+"""Evidence recall from gold session ids, no LLM calls."""
 
 from __future__ import annotations
 
@@ -18,7 +12,6 @@ from pathlib import Path
 
 def _gold_lookup(bench: str) -> dict[str, set[str]]:
     ad = importlib.import_module(f"bench.{bench}.adapter")
-    # Category 5 included: this is a lookup table, not the question set.
     kwargs = {"include_adversarial": True} if bench == "locomo" else {}
     return {
         inst.question.question_id: ad.gold_sessions(inst.question)
@@ -35,7 +28,6 @@ def score(rows: list[dict], bench: str = "locomo") -> dict:
     scored = 0
     skipped_no_gold = 0
     skipped_no_provenance = 0
-    # Only meaningful on a judged file; stays zeroed otherwise.
     split = {"retrieval_miss": 0, "reader_miss": 0, "correct_with_gold": 0,
              "correct_without_gold": 0}
     judged = False
@@ -44,11 +36,9 @@ def score(rows: list[dict], bench: str = "locomo") -> dict:
         qid = str(r.get("question_id", ""))
         gold = gold_map.get(qid) or set()
         if not gold:
-            # An unlabelled question says nothing about retrieval; skip rather than score 0.
             skipped_no_gold += 1
             continue
         if "retrieved_sessions" not in r:
-            # Rows predating provenance are counted, never scored as an empty retrieval.
             skipped_no_provenance += 1
             continue
 
@@ -131,7 +121,6 @@ def main(argv: list[str] | None = None) -> int:
                 f"  ({sp['reader_miss'] / wrong * 100:.1f}% of wrong)"
             )
         print(f"  correct, all gold present:    {sp['correct_with_gold']:5d}")
-        # LoCoMo's gold evidence is not always the only place an answer appears.
         print(f"  correct, gold incomplete:     {sp['correct_without_gold']:5d}")
     return 0
 

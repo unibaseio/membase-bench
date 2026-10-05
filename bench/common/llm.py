@@ -1,18 +1,4 @@
-"""Bench-owned chat client for judges, the DMR reader and the competitor baselines.
-
-Built on the official ``openai`` SDK so grading never depends on the engine under test. It
-reproduces the calling convention every published judge run used:
-
-- temperature 0, except for models that reject it (gpt-5*, o-series): those get the default
-  temperature and ``max_completion_tokens`` instead of ``max_tokens``;
-- transient errors (rate limit, connection, timeout, 5xx) retried up to 8 attempts with
-  randomised exponential backoff (2-90 s), logged to stderr;
-- ``chat_text`` omits an empty system message; ``chat_json`` asks for a JSON object and returns
-  ``{}`` when the reply does not parse.
-
-``OPENAI_API_KEY`` and, for an OpenAI-compatible endpoint, ``OPENAI_BASE_URL`` come from the
-environment, as the SDK reads them.
-"""
+"""OpenAI chat client for judges, the DMR reader and the baselines."""
 
 from __future__ import annotations
 
@@ -47,7 +33,6 @@ if not _log.handlers:
     _log.addHandler(_h)
     _log.setLevel(logging.WARNING)
 
-# Models that answered 400 to ``temperature``; later calls skip it.
 _NO_TEMP_MODELS: set[str] = set()
 _NO_TEMP_LOCK = threading.Lock()
 
@@ -63,14 +48,12 @@ def _is_reasoning_model(model: str) -> bool:
 
 
 def _create(kwargs: dict[str, Any]):
-    """One completion with retries; temperature 0 unless the model rejects it."""
     for attempt in range(1, _ATTEMPTS + 1):
         try:
             return _create_with_temp0(kwargs)
         except _RETRYABLE as exc:
             if attempt == _ATTEMPTS:
                 raise
-            # Same envelope as tenacity's wait_random_exponential(min=2, max=90).
             wait = random.uniform(0, min(_WAIT_MAX, 2.0 ** (attempt - 1)))
             wait = max(_WAIT_MIN, wait)
             _log.warning(
@@ -96,7 +79,6 @@ def _create_with_temp0(kwargs: dict[str, Any]):
 
 
 def chat_text(model: str, system: str, user: str, max_tokens: int = 1024) -> str:
-    """Plain completion; returns the reply text ("" when the model sends none)."""
     messages: list[dict[str, str]] = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -112,7 +94,6 @@ def chat_text(model: str, system: str, user: str, max_tokens: int = 1024) -> str
 
 
 def chat_json(model: str, system: str, user: str, max_tokens: int = 2048) -> dict[str, Any]:
-    """JSON-object completion; returns ``{}`` when the reply is not valid JSON."""
     kwargs: dict[str, Any] = {
         "model": model,
         "messages": [

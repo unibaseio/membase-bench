@@ -1,8 +1,4 @@
-"""Zep Cloud baseline (https://www.getzep.com/): one Zep session per conversation, messages posted
-with ``memory.add``, each question answered over ``memory.search_sessions`` hits.
-
-Zep is cloud-only: ``ZEP_API_KEY=... python -m baselines.locomo.zep_runner --out runs/zep.jsonl``.
-"""
+"""Zep Cloud baseline (https://www.getzep.com/)."""
 
 from __future__ import annotations
 
@@ -79,7 +75,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str) 
     try:
         client.user.add(user_id=user_id)
     except Exception:
-        pass  # may already exist
+        pass
     try:
         client.memory.add_session(session_id=session_id, user_id=user_id)
     except Exception:
@@ -109,8 +105,6 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str) 
                     limit=10,
                 )
                 facts: list[str] = []
-                # The Zep SDK returns search results with a `.message.content`
-                # or similar structure depending on version; extract robustly.
                 items = getattr(hits, "results", None) or hits or []
                 for r in items:
                     msg = getattr(r, "message", None)

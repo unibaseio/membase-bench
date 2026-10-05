@@ -1,7 +1,4 @@
-"""Default model for the baseline readers and judges: ``MEMBASE_BENCH_MODEL``, else gpt-4o.
-
-Providers come from the environment (``OPENAI_API_KEY`` etc.).
-"""
+"""Default model for baseline readers and judges: MEMBASE_BENCH_MODEL, else gpt-4o."""
 
 from __future__ import annotations
 

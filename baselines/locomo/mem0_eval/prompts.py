@@ -1,25 +1,7 @@
-"""
-LOCOMO Benchmark Prompts
-========================
-
-Answer generation and category-specific judge prompts for the LOCOMO
-benchmark (Snap Research, ACL 2024). Uses the industry-standard J-score
-methodology: binary LLM judge (CORRECT/WRONG) on categories 1-4.
-
-Category mapping:
-    1 = multi-hop (282 questions)
-    2 = temporal reasoning (321 questions)
-    3 = open-domain (96 questions)
-    4 = single-hop (841 questions)
-    5 = adversarial (446 questions) — excluded from scoring
-"""
+"""mem0's LoCoMo answer and judge prompts."""
 
 from datetime import datetime as _datetime
 
-
-# ===============================================================================
-# CATEGORY NAME MAPPING
-# ===============================================================================
 
 CATEGORY_NAMES = {
     1: "multi-hop",
@@ -31,10 +13,6 @@ CATEGORY_NAMES = {
 
 CATEGORIES_TO_EVALUATE = [1, 2, 3, 4]
 
-
-# ===============================================================================
-# ANSWER GENERATION PROMPT
-# ===============================================================================
 
 ANSWER_GENERATION_PROMPT = """You are answering a question using retrieved memories from past conversations. Follow these reasoning steps IN ORDER.
 
@@ -101,26 +79,19 @@ ANSWERER_MEMORY_LIMIT = 200
 
 
 def _to_human_date(iso_str: str) -> str:
-    """Convert ISO 8601 timestamp to human-readable date (e.g., 'May 7, 2023')."""
     for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
         try:
             return _datetime.strptime(iso_str[:26].rstrip("Z"), fmt.replace("%z", "")).strftime("%A, %B %d, %Y")
         except ValueError:
             continue
-    # Last resort: just show the date portion
     return iso_str[:10]
 
 
 def _format_user_profile(user_profile: dict) -> str:
-    """Format a user profile dict as readable key-value pairs for the prompt.
-
-    Omits keys with null/empty values. Formats lists as comma-separated strings.
-    """
     lines = ["## User Profile"]
     for key, value in user_profile.items():
         if value is None:
             continue
-        # Format key: snake_case -> Title Case
         display_key = key.replace("_", " ").title()
         if isinstance(value, list):
             if not value:
@@ -133,7 +104,6 @@ def _format_user_profile(user_profile: dict) -> str:
         else:
             display_value = str(value)
         lines.append(f"{display_key}: {display_value}")
-    # Only return if we have at least one field beyond the header
     if len(lines) <= 1:
         return ""
     return "\n".join(lines)
@@ -145,21 +115,6 @@ def get_answer_generation_prompt(
     reference_date: str = None,
     user_profile: dict = None,
 ) -> str:
-    """Build the answer generation prompt from search results.
-
-    Shows the top ANSWERER_MEMORY_LIMIT memories sorted chronologically
-    (oldest first) with human-readable dates. No rank numbers or scores
-    are shown to avoid anchoring bias.
-
-    Args:
-        question: The question to answer.
-        search_results: List of memory dicts from search.
-        reference_date: Human-readable date string (e.g., "January 04, 2024")
-            representing when the conversations took place. Used for temporal
-            reasoning. Defaults to "2023" if not provided.
-        user_profile: Optional dict of user profile data. When provided, a
-            User Profile section is added to the prompt before the memories.
-    """
     if reference_date is None:
         reference_date = "2023"
 
@@ -167,7 +122,6 @@ def get_answer_generation_prompt(
         memories_text = "(No relevant memories found)"
     else:
         top_results = search_results[:ANSWERER_MEMORY_LIMIT]
-        # Sort chronologically (oldest first) to present as a narrative
         sorted_results = sorted(top_results, key=lambda x: x.get("created_at", ""))
         lines = ["The following memories are presented in chronological order (oldest to newest).", ""]
         for result in sorted_results:
@@ -180,7 +134,6 @@ def get_answer_generation_prompt(
                 lines.append(f"(unknown date) {memory}")
         memories_text = "\n".join(lines)
 
-    # Optionally prepend user profile section before memories
     profile_section = ""
     if user_profile:
         profile_section = _format_user_profile(user_profile)
@@ -194,14 +147,8 @@ def get_answer_generation_prompt(
     )
 
 
-# ===============================================================================
-# JUDGE PROMPT (unified — evidence is an optional add-on)
-# ===============================================================================
-
-# ── Shared judge system prompt ──
 JUDGE_SYSTEM_PROMPT = "You are evaluating conversational AI memory recall. Return JSON only with the format requested."
 
-# ── Evidence chunk (injected when evidence is available) ──
 _EVIDENCE_CHUNK = """
 ## Evidence (actual conversation messages containing the answer)
 {evidence_context}
@@ -213,7 +160,6 @@ _EVIDENCE_RULE = """
 
 _EVIDENCE_WRONG_CLAUSE = " AND is not supported by evidence"
 
-# ── Unified judge prompt template ──
 _JUDGE_TEMPLATE = """Label the generated answer as CORRECT or WRONG.
 {evidence_section}
 ## Rules
@@ -245,14 +191,12 @@ Return JSON with "reasoning" (one sentence) and "label" (CORRECT or WRONG). Do N
 
 
 def _build_judge_prompt(evidence_context: str = None) -> str:
-    """Build the judge prompt template, with or without evidence."""
     if evidence_context:
         prompt = _JUDGE_TEMPLATE.format(
             evidence_section=_EVIDENCE_CHUNK.format(evidence_context=evidence_context),
             evidence_rule=_EVIDENCE_RULE,
             evidence_wrong_clause=_EVIDENCE_WRONG_CLAUSE,
         )
-        # Renumber rules when evidence rule is inserted (5→6, 6→7, 7→8)
         prompt = prompt.replace("\n5. **SEMANTIC OVERLAP", "\n6. **SEMANTIC OVERLAP")
         prompt = prompt.replace("\n6. **SAME REFERENT", "\n7. **SAME REFERENT")
         prompt = prompt.replace("\n7. **FOCUS ON KNOWLEDGE", "\n8. **FOCUS ON KNOWLEDGE")
@@ -265,13 +209,8 @@ def _build_judge_prompt(evidence_context: str = None) -> str:
     return prompt
 
 
-# Keep JUDGE_PROMPT as a module-level constant for backward compat (no evidence)
 JUDGE_PROMPT = _build_judge_prompt(evidence_context=None)
 
-
-# ===============================================================================
-# DISPATCH
-# ===============================================================================
 
 def get_judge_prompt(
     category: int,
@@ -279,11 +218,6 @@ def get_judge_prompt(
     answer: str,
     response: str,
 ) -> str:
-    """Return the formatted unified judge prompt (no evidence).
-
-    Accepts category for backwards compatibility but uses the same
-    unified prompt for all categories.
-    """
     return JUDGE_PROMPT.format(
         question=question,
         answer=answer,
@@ -298,11 +232,6 @@ def get_judge_prompt_with_evidence(
     response: str,
     evidence_context: str,
 ) -> str:
-    """Return the formatted judge prompt with evidence context.
-
-    Same prompt as get_judge_prompt but with the evidence section
-    and evidence-specific rule injected.
-    """
     prompt = _build_judge_prompt(evidence_context=evidence_context)
     return prompt.format(
         question=question,
@@ -312,10 +241,6 @@ def get_judge_prompt_with_evidence(
 
 
 def preprocess_answer(category: int, answer: str) -> str:
-    """Preprocess ground truth answer based on category.
-
-    Category 3 (open-domain): use only the first part before semicolon.
-    """
     if category == 3 and ";" in answer:
         return answer.split(";")[0].strip()
     return answer

@@ -1,8 +1,4 @@
-"""Full-context baseline, the LoCoMo paper's ceiling: the whole conversation and the question go
-to the reader in one chat completion, with no memory store or retrieval.
-
-Run: ``python -m baselines.locomo.full_context_runner --out runs/full_context.jsonl``.
-"""
+"""Full-context ceiling: the whole conversation goes to the reader, with no retrieval."""
 
 from __future__ import annotations
 
@@ -42,7 +38,6 @@ Answer:"""
 
 
 def _format_conversation(inst: Instance) -> str:
-    """Session date headers let the reader use temporal cues."""
     blocks: list[str] = []
     for s in inst.sessions:
         blocks.append(f"--- Session @ {s.session_date} ---")

@@ -1,4 +1,4 @@
-"""bench.longmemeval.judge --membase-judge path: parallel runs, majority vote, prompt rendering."""
+"""The LongMemEval --membase-judge majority vote."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from bench.longmemeval import judge as lme_judge
 
 
 class FakeChat:
-    """Stands in for ``bench.common.llm.chat_text``: replies in order, records each call."""
 
     def __init__(self, replies: list[str]) -> None:
         self.replies = list(replies)

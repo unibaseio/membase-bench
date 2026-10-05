@@ -1,10 +1,4 @@
-"""Run LongMemEval_S through the Membase engine (membase-core public API), one store per
-question (same harness shape as the upstream benchmark adapter).
-
-The reader uses the ``answer_longmemeval`` prompt with the question's "Current Date" line.
-An empty retrieval records ``[NO_CONTEXT]`` (the reader's reply, if any, is discarded), so
-``_abs`` questions are not graded CORRECT for the wrong reason.
-"""
+"""Run LongMemEval_S through membase-core, one store per question."""
 
 from __future__ import annotations
 
@@ -58,7 +52,7 @@ def _answer(
                 q.question_date,
                 owner=EVAL_OWNER,
                 answer_prompt=ANSWER_PROMPT,
-                reader_date_line=True,  # LongMemEval has a real per-question date
+                reader_date_line=True,
             )
             if not ans.retrieval.observations_top:
                 return Hypothesis(q.question_id, NO_CONTEXT, q.category, q.answer, [], 0)
@@ -70,7 +64,7 @@ def _answer(
                 list(ans.context.context_session_ids),
                 len(ans.context.observation_ids),
             )
-    except Exception as exc:  # noqa: BLE001 - recorded, graded wrong, kept in denominator
+    except Exception as exc:  # noqa: BLE001
         return Hypothesis(
             inst.question.question_id,
             f"ERROR: {type(exc).__name__}: {exc}",
@@ -106,7 +100,6 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--resume", action="store_true")
     args = ap.parse_args(argv)
 
-    # The reader's output budget; the published runs used 16384 (gpt-5.5 reasons at length).
     os.environ.setdefault("MEMBASE_ANSWER_MAX_TOKENS", "16384")
 
     instances = load()

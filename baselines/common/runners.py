@@ -1,4 +1,4 @@
-"""Helpers shared by the baseline runners: sampling, haystack grouping, ids and row shapes."""
+"""Helpers shared by the baseline runners."""
 
 from __future__ import annotations
 
@@ -25,14 +25,6 @@ def stratified_sample(instances: list[Instance], n_per_cat: int, seed: int) -> l
 
 
 def group_key(inst: Instance) -> str:
-    """Key that groups questions sharing one haystack, so a runner
-    ingests the haystack once and answers every question against it.
-
-    LoCoMo: many questions share a conversation — ``conv-26-q0`` →
-    ``conv-26``. LongMemEval: each question carries its *own* haystack
-    (53 distractor sessions, no sharing) and the instance_id is the
-    unique question_id, so the question_id itself is the group.
-    """
     if "-q" in inst.instance_id:
         return inst.instance_id.rsplit("-q", 1)[0]
     return inst.instance_id
@@ -43,15 +35,12 @@ def safe_id(raw: str) -> str:
 
 
 def gold_text(inst: Instance) -> str:
-    """Stringify the gold answer; LoCoMo gives both strings and lists."""
     ans = inst.question.answer
     return ans if isinstance(ans, str) else json.dumps(ans)
 
 
 def make_retrieval_row(inst: Instance, memories: list[dict[str, Any]] | None,
                         error: str | None = None) -> dict[str, Any]:
-    """Build the dict every retrieval-only runner emits. Keep one schema
-    so ``baselines.locomo.mem0_eval.run`` can read any of them."""
     row: dict[str, Any] = {
         "question_id": inst.question.question_id,
         "category": inst.question.category,
@@ -70,15 +59,11 @@ def speaker_of(turn: dict) -> str:
 
 
 def speaker_line(turn: dict) -> str:
-    """``speaker: text``. LoCoMo's loader already writes the prefix; LongMemEval's does not."""
     speaker, content = speaker_of(turn), str(turn.get("content") or "").strip()
     return content if content.startswith(f"{speaker}: ") else f"{speaker}: {content}"
 
 
 def chat_roles(inst: Instance) -> dict[str, str]:
-    """Speaker -> ``user`` / ``assistant`` for chat-shaped memory APIs. LongMemEval turns already
-    carry those roles; LoCoMo's two named speakers become ``user`` (the first to speak) and
-    ``assistant``."""
     roles: dict[str, str] = {}
     for s in inst.sessions:
         for t in s.turns:

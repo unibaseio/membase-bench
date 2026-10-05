@@ -1,9 +1,4 @@
-"""LangMem baseline (https://github.com/langchain-ai/langmem): a memory store manager extracts
-facts from each session into an in-process langgraph ``InMemoryStore``, one namespace per
-conversation, and each question searches that store.
-
-Run: ``python -m baselines.locomo.langmem_runner --out runs/langmem.jsonl`` (needs ``OPENAI_API_KEY``).
-"""
+"""LangMem baseline (https://github.com/langchain-ai/langmem)."""
 
 from __future__ import annotations
 
@@ -96,10 +91,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
             "langmem baseline requires `pip install langmem langgraph langchain-openai`"
         ) from e
 
-    # The default LangMem manager produces 1-2 high-level summaries per
-    # session — far too compressed for a recall benchmark. We give it an
-    # explicit Fact schema and instructions tuned for fact-level extraction
-    # so the store keeps date/name/quantity granularity.
+    # The default manager keeps only 1-2 summaries per session; extract facts instead.
     class Fact(BaseModel):
         """A specific, atomic fact extracted from the conversation."""
         subject: str = Field(description="Who or what the fact is about")

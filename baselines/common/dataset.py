@@ -1,8 +1,4 @@
-"""Dataset dispatch for the baseline runners: the same loaders as ``bench/``, so every system
-answers the same questions over the same sessions and one judge grades them all.
-
-``BENCH_DATASET`` picks the benchmark (default ``locomo``; ``longmemeval``).
-"""
+"""Baselines load through bench's loaders, so every system answers the same questions."""
 
 from __future__ import annotations
 

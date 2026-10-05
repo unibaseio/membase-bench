@@ -1,9 +1,4 @@
-"""mem0 baseline (https://github.com/mem0ai/mem0): one mem0 ``user_id`` per conversation, each
-session added with ``Memory.add``; each question runs ``Memory.search`` and one reader call over
-the retrieved memories, mem0's published LoCoMo recipe.
-
-Run: ``python -m baselines.locomo.mem0_runner --out runs/mem0.jsonl`` (needs ``OPENAI_API_KEY``).
-"""
+"""mem0 baseline (https://github.com/mem0ai/mem0)."""
 
 from __future__ import annotations
 
@@ -70,11 +65,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
         raise ImportError("mem0 baseline requires `pip install mem0ai`") from e
 
     user_id = _safe_user_id(group_key)
-    # IMPORTANT: explicit gpt-4o-mini config. mem0 v2.0.1 defaults to a
-    # model whose OpenAI API requires `max_completion_tokens`, but mem0
-    # still sends `max_tokens` — extraction silently fails with HTTP 400
-    # and the store stays empty. Pinning gpt-4o-mini avoids this until
-    # mem0 fixes upstream.
+    # mem0's default model rejects max_tokens and extraction fails silently; pin gpt-4o-mini.
     mem = Memory.from_config({
         "llm": {"provider": "openai",
                 "config": {"model": "gpt-4o-mini", "temperature": 0}},
@@ -89,10 +80,6 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
         else:
             already_ingested = False
 
-        # mem0's parse_messages drops any role that isn't user/assistant/system,
-        # so LoCoMo speaker names like "Caroline" → empty string → 400 from
-        # OpenAI embed. Normalize to a 2-speaker user/assistant alternation;
-        # the speaker name stays in the content prefix the loader adds.
         sessions_to_ingest = [] if already_ingested else instances[0].sessions
         for s in sessions_to_ingest:
             speaker_to_role: dict[str, str] = {}
@@ -102,6 +89,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
                 if not content:
                     continue
                 speaker = t.get("speaker") or t.get("role") or "user"
+                # mem0 drops roles other than user/assistant/system.
                 if speaker not in speaker_to_role:
                     speaker_to_role[speaker] = (
                         "user" if not speaker_to_role else "assistant"
@@ -112,11 +100,7 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
                 })
             if not messages:
                 continue
-            # mem0's fact-extraction prompt hard-codes datetime.now() as
-            # "today", so without an explicit per-session date its LLM
-            # rewrites every dated reference into the wall-clock year.
-            # Prefix the session timestamp so the extractor anchors facts
-            # to LoCoMo's actual conversation date.
+            # Without a date in the text, mem0 anchors facts to datetime.now().
             session_date = (s.session_date or "").strip()
             if session_date:
                 messages[0] = dict(messages[0])
@@ -180,7 +164,6 @@ def _answer_group(group_key: str, instances: list[Instance], reader_model: str,
     finally:
         if not persist:
             try:
-                # mem0 keeps state across calls; flush this user's data.
                 mem.delete_all(user_id=user_id)
             except Exception:
                 pass

@@ -1,5 +1,4 @@
-"""The harness may use only membase-core's public API: `membase_core` top-level names and
-`membase_core.sources`. Anything deeper is engine-internal and may change between releases."""
+"""The harness uses only membase-core's public API."""
 
 from __future__ import annotations
 

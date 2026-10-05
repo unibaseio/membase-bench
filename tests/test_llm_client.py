@@ -1,4 +1,4 @@
-"""bench.common.llm: request shape, temperature fallback, JSON parsing, retries (no network)."""
+"""bench.common.llm without network."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def test_reasoning_model_drops_temperature_after_400(fake):
     assert c.calls[0]["temperature"] == 0.0 and c.calls[0]["max_completion_tokens"] == 2048
     assert "temperature" not in c.calls[1]
     assert llm.chat_text("gpt-5.5", "sys", "q") == "ok2"
-    assert "temperature" not in c.calls[2]  # remembered
+    assert "temperature" not in c.calls[2]
 
 
 def test_chat_json_parses_and_falls_back_to_empty(fake):

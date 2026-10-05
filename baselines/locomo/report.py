@@ -1,18 +1,4 @@
-"""Aggregate per-runner judged.jsonl files into a single comparison table.
-
-Usage:
-  python -m baselines.locomo.report runs/membase.judged.jsonl runs/mem0.judged.jsonl ...
-
-Output columns (matching the LoCoMo paper convention):
-
-  Method   Single-hop (%)  Multi-hop (%)  Open-domain (%)  Temporal (%)  Overall (%)
-
-`adversarial` rows (gold = null trick questions) are reported separately
-since they invert the scoring axis.
-
-Method label is derived from the filename stem by default; override with
-`--label name=path` syntax.
-"""
+"""Per-category comparison table from judged baseline runs."""
 
 from __future__ import annotations
 
@@ -59,8 +45,6 @@ def _load_judged(path: Path) -> list[dict]:
 
 
 def _aggregate(rows: list[dict]) -> tuple[dict[str, Score], Score, Score]:
-    """Return (per-category Scores, overall on the 4 main categories,
-    adversarial Score)."""
     by_cat: dict[str, Score] = collections.defaultdict(Score)
     for r in rows:
         cat = r.get("category", "")
@@ -90,7 +74,6 @@ def _label_from_path(p: Path) -> str:
 
 
 def _parse_label_args(label_args: list[str]) -> dict[str, str]:
-    """Parse `--label name=path` entries into {path: name}."""
     out: dict[str, str] = {}
     for la in label_args:
         if "=" not in la:

@@ -1,7 +1,4 @@
-"""Side-by-side comparison of judged LoCoMo arms, scored over the questions they share.
-
-    python -m bench.locomo.compare runs/a.judged.jsonl runs/b.judged.jsonl
-"""
+"""Paired comparison of judged LoCoMo runs over the questions they share."""
 
 from __future__ import annotations
 

@@ -1,9 +1,4 @@
-"""DMR (Deep Memory Retrieval) loader: MemGPT's MSC-Self-Instruct, 500 questions.
-
-Zep's protocol: all five sessions are ingested, even-indexed messages are speaker A and odd
-are B, the question is ``self_instruct["B"]`` and the gold reply is ``self_instruct["A"]``.
-Zep passes no timestamps; dates are synthesised backwards from a fixed anchor.
-"""
+"""DMR loader: MemGPT's MSC-Self-Instruct, 500 questions."""
 
 from __future__ import annotations
 
@@ -63,7 +58,6 @@ def load(limit: int | None = None, path: str | None = None) -> list[Instance]:
         prefix = f"dmr-{i}"
         sessions: list[Session] = []
         prevs = r.get("previous_dialogs") or []
-        # Dates run backwards from the anchor by each session's time_back.
         cursor = _ANCHOR
         dates: list[datetime] = []
         for p in reversed(prevs):

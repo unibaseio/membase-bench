@@ -1,7 +1,4 @@
-"""DMR grader: Zep's/MemGPT's prompt verbatim, gpt-4o-mini, structured true/false.
-
-An ERROR hypothesis is graded false without a model call and kept in the denominator.
-"""
+"""DMR judge: Zep's and MemGPT's grading prompt, gpt-4o-mini."""
 
 from __future__ import annotations
 

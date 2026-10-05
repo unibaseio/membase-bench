@@ -1,7 +1,4 @@
-"""LongMemEval judge: the LoCoMo CORRECT/WRONG prompt with the benchmark's official per-type
-grading rule prepended (verbatim from Membase's adapter). ``[NO_CONTEXT]`` is graded WRONG with
-no model call; a row with no readable verdict after retries leaves the denominator, as the reference.
-"""
+"""LongMemEval judge: the official per-type rule before the CORRECT/WRONG prompt."""
 
 from __future__ import annotations
 
@@ -57,8 +54,6 @@ def parse_label(content: str) -> str | None:
 
 
 def _vote_label(content: str) -> tuple[bool, str]:
-    """One majority-vote reply: the outermost ``{...}`` must parse and carry a CORRECT/WRONG
-    ``label``; anything else raises so the run is retried."""
     i, j = content.find("{"), content.rfind("}")
     if i < 0 or j < i:
         raise ValueError(f"No JSON object found in judge LLM response: {content[:200]!r}")
@@ -72,8 +67,6 @@ def _vote_label(content: str) -> tuple[bool, str]:
 
 
 def _vote_once(prompt: str, model: str, max_retries: int = 5) -> tuple[bool, str]:
-    """One vote: any failure (transport or parse) retried with 1, 2, 4, 8 s backoff; the last
-    failure propagates."""
     for attempt in range(max_retries):
         try:
             return _vote_label(chat_text(model, "", prompt, max_tokens=2048))
@@ -85,7 +78,6 @@ def _vote_once(prompt: str, model: str, max_retries: int = 5) -> tuple[bool, str
 
 
 def majority_vote(prompt: str, *, model: str, runs: int) -> tuple[bool, list[bool], list[str]]:
-    """``runs`` independent judge calls in parallel; CORRECT when more than half say so."""
     with ThreadPoolExecutor(max_workers=max(1, runs)) as pool:
         outcomes = list(pool.map(lambda _: _vote_once(prompt, model), range(runs)))
     votes = [c for c, _ in outcomes]
@@ -118,14 +110,12 @@ def _result(row: dict, m: dict, label: str | None, *, excluded: bool, **extra) -
 
 
 def _judge_membase(row: dict, *, model: str, meta: dict, runs: int) -> dict:
-    """Same prompt, graded by ``runs`` parallel calls and a majority vote (Membase's
-    ``allm_judge`` protocol)."""
     m = meta.get(row["question_id"], {})
     if _no_answer(row):
         return _result(row, m, "WRONG", excluded=False)
     try:
         is_correct, votes, reasoning = majority_vote(_prompt(row, m), model=model, runs=runs)
-    except Exception:  # noqa: BLE001 -- every retry failed: leaves the denominator, as below
+    except Exception:  # noqa: BLE001
         return _result(row, m, None, excluded=True)
     return _result(
         row,

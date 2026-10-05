@@ -1,4 +1,4 @@
-"""Memori notebook-compatible LoCoMo judge: the notebook's CORRECT/WRONG prompt and parser."""
+"""LoCoMo judge: Memori's notebook CORRECT/WRONG prompt."""
 
 from __future__ import annotations
 
@@ -88,7 +88,6 @@ def _normalize_answer(text: str) -> str:
 
 
 def _question_lookup() -> dict[str, str]:
-    # Lookup table, not the question set: hypotheses may cite category-5 ids.
     return {
         inst.question.question_id: inst.question.question
         for inst in load(limit=None, include_adversarial=True)
@@ -118,7 +117,6 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("hypotheses", help="jsonl from runner")
     ap.add_argument("--out", required=True)
-    # Matches the judge model Membase runs on LoCoMo; changing it re-grades every arm.
     ap.add_argument("--judge-model", default="gpt-4o-mini")
     ap.add_argument("--workers", type=int, default=8)
     args = ap.parse_args(argv)
@@ -150,8 +148,6 @@ def main(argv: list[str] | None = None) -> int:
         acc = sum(r["correct"] for r in vals) / len(vals) * 100
         print(f"  {cat:20s} {f1_avg:7.2f}  {acc:7.2f}  {len(vals):5d}")
     print("-" * 60)
-    # Micro accuracy is the headline (same statistic Membase reports); macro is printed
-    # beside it because a stratified sample measures macro.
     overall_f1 = sum(r["f1"] for r in judged) / max(1, len(judged)) * 100
     overall_acc = sum(r["correct"] for r in judged) / max(1, len(judged)) * 100
     print(f"  {'overall (micro)':20s} {overall_f1:7.2f}  {overall_acc:7.2f}  {len(judged):5d}")
@@ -161,7 +157,6 @@ def main(argv: list[str] | None = None) -> int:
         ) / len(by_cat) * 100
         print(f"  {'overall (macro)':20s} {'':7s}  {macro:7.2f}  {len(by_cat):5d} cats")
 
-    # Unreadable verdicts are graded WRONG and kept in the denominator, as the reference does.
     unreadable = sum(1 for r in judged if r["label"] is None)
     if unreadable:
         print(

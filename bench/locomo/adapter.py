@@ -1,8 +1,4 @@
-"""LoCoMo loader (snap-research/locomo, data/locomo10.json).
-
-Each conversation carries ``session_<n>`` turn lists with ``session_<n>_date_time``
-strings and a ``qa`` list of {question, answer, category, evidence}.
-"""
+"""LoCoMo loader (snap-research/locomo)."""
 
 from __future__ import annotations
 
@@ -18,7 +14,7 @@ from bench.common.types import Instance, Question, Session
 DATA_URL = "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json"
 DEFAULT_CACHE = Path(os.environ.get("BENCH_DATA_DIR", "data")) / "locomo10.json"
 
-# Counter-intuitive but verified against the data: cat 1 is multi-hop, cat 4 single-hop.
+# Verified against the data: category 1 is multi-hop, 4 single-hop.
 CATEGORY_NAMES = {
     1: "multi_hop",
     2: "temporal",
@@ -27,8 +23,7 @@ CATEGORY_NAMES = {
     5: "adversarial",
 }
 
-# Category 5 (adversarial) needs a refusal-aware judge; dropping it leaves the 1,540
-# questions that published LoCoMo numbers are reported over.
+# Category 5 (adversarial) is left out, as in every published LoCoMo number.
 EXCLUDED_CATEGORIES = frozenset({5})
 
 
@@ -75,10 +70,6 @@ def load(
     *,
     include_adversarial: bool = False,
 ) -> list[Instance]:
-    """Load LoCoMo instances; ``include_adversarial`` keeps category 5.
-
-    ``question_id`` indexes the unfiltered ``qa`` list, so ids are stable either way.
-    """
     p = _ensure_dataset(Path(path) if path else DEFAULT_CACHE)
     data = json.loads(p.read_text())
 
@@ -106,7 +97,6 @@ def load(
                 category=cat,
                 extra={
                     "evidence": q.get("evidence", []),
-                    # The one owner partition queried (speaker_a), matching Membase's adapter.
                     "eval_owner": str(conv.get("conversation", {}).get("speaker_a", "")),
                 },
             )
@@ -131,13 +121,11 @@ def _build_sessions(sample_id: str, conv: dict[str, Any]) -> list[Session]:
         for t in conv.get(sk) or []:
             speaker = t.get("speaker") or t.get("role") or "user"
             text = t.get("text") or t.get("content") or ""
-            # Fold shared-image captions into the turn text.
             blip = t.get("blip_caption") or ""
             query = t.get("query") or ""
             if blip or query:
                 img_desc = f"{query} — {blip}" if query and blip else (query or blip)
                 text = f"[Shared image: {img_desc}] {text}".strip()
-            # Speaker name as role; the prefix stays in content for lexical/embedding recall.
             turns.append({
                 "role": speaker,
                 "content": f"{speaker}: {text}",
@@ -159,10 +147,6 @@ _EVIDENCE_RE = re.compile(r"D(\d+):")
 
 
 def gold_sessions(question: Question) -> set[str]:
-    """Session ids cited by the gold evidence (``D<session>:<turn>``), in ``_build_sessions``'s scheme.
-
-    Empty when nothing resolves; callers should skip those rather than score them 0.
-    """
     sample_id = question.question_id.rsplit("-q", 1)[0]
     out: set[str] = set()
     for ev in question.extra.get("evidence") or []:
