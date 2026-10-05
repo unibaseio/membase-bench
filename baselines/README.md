@@ -30,7 +30,7 @@ baselines/
 Each system has its own extra; one environment per system keeps their dependencies apart:
 
 ```bash
-uv sync --extra mem0                               # or memori, langmem, zep, graphiti
+uv pip install -e ".[mem0]"                        # or memori, langmem, zep, graphiti
 export OPENAI_API_KEY=...
 export MEMBASE_BENCH_MODEL=gpt-4o                  # the runners' default reader model
 ```

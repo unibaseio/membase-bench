@@ -105,19 +105,50 @@ verbatim: even turns are speaker A, the question is `self_instruct.B` and the go
 `gpt-4-turbo`: Zep 94.8%, MemGPT 93.4%). Each DMR memory is only 5–7 episodes, so the whole memory
 reaches our reader; the 39 misses are details the episode narrative lost.
 
-## Run it yourself
+## Setup
 
-**Install.** Python 3.12 or 3.13; membase-core comes from PyPI as compiled wheels for Linux,
-macOS and Windows (proprietary, licensed for running these benchmarks).
+**Requirements.**
+
+- Python 3.12 or 3.13 on Linux (x86_64, arm64), macOS (Intel, Apple silicon) or Windows (x86_64):
+  membase-core is installed from PyPI as compiled wheels for these only (proprietary, licensed for
+  running these benchmarks).
+- An OpenAI API key: the engine, the readers and the judges all call OpenAI.
+- About 1.5 GB of disk with the CPU build of torch (which the engine's cross-encoder needs), or
+  about 6 GB with the default CUDA build on Linux.
+
+**With uv** (recommended):
 
 ```bash
-uv sync && source .venv/bin/activate    # or: pip install -e .
-export OPENAI_API_KEY=...
+git clone https://github.com/unibaseio/membase-bench && cd membase-bench
+uv venv --python 3.12
+uv pip install --torch-backend cpu -e ".[dev]"     # drop --torch-backend cpu to use a GPU build
+source .venv/bin/activate                          # Windows: .venv\Scripts\activate
+```
+
+**With pip:**
+
+```bash
+git clone https://github.com/unibaseio/membase-bench && cd membase-bench
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # Linux without a GPU; skip on macOS / Windows
+pip install -e ".[dev]"
+```
+
+**Keys and models.** Export them in the shell that runs the benchmarks:
+
+```bash
+export OPENAI_API_KEY=sk-...
 export MEMBASE_EPISODE_MODEL=gpt-4.1-mini MEMBASE_DECIDER_MODEL=gpt-4.1-mini MEMBASE_READER_MODEL=gpt-4.1-mini
 ```
 
-On Linux without a GPU, `uv venv && uv pip install --torch-backend cpu -e .` avoids the
-multi-GB CUDA build of torch that the engine's cross-encoder pulls in.
+**Check the install** (offline, no key needed):
+
+```bash
+pytest                                       # 10 tests, about a second
+python -m bench.locomo.ours_core --help
+```
+
+## Run it yourself
 
 **Data.** Datasets are not redistributed; they live in `data/` (`BENCH_DATA_DIR` overrides it).
 LoCoMo downloads itself on first use. LongMemEval_S (the original release, not
@@ -175,7 +206,7 @@ calls.
 
 [baselines/](baselines/README.md) runs mem0, Memori, LangMem, Zep, Graphiti and a full-context
 ceiling on the same LoCoMo and LongMemEval_S questions and sessions, through the same loaders, and
-the same judges grade them. Each system has its own extra (`uv sync --extra mem0`, …); DMR has no
+the same judges grade them. Each system has its own extra (`uv pip install -e ".[mem0]"`, …); DMR has no
 baseline runners.
 
 ## Repository
@@ -189,7 +220,7 @@ bench/
   retrieval_metrics.py evidence recall and miss attribution
   efficiency.py        serial latency and context size
 baselines/             competitor runners
-tests/                 offline tests: uv sync --extra dev && uv run pytest
+tests/                 offline tests: pytest
 ```
 
 Judges, the DMR reader and the baselines call OpenAI directly, never through the engine under test.
