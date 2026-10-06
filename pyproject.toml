@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (membase-core)."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
-license = "MIT"
+license = "LicenseRef-Proprietary"
 license-files = ["LICENSE", "NOTICE"]
 dependencies = [
     # The engine under test, pinned to one release. The harness uses only its public API

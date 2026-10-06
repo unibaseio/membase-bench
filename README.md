@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://pypi.org/project/membase-core/"><img src="https://img.shields.io/pypi/v/membase-core?label=membase-core" alt="membase-core"></a>
   <img src="https://img.shields.io/badge/python-3.12%20%7C%203.13-blue" alt="Python 3.12 | 3.13">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-proprietary-blue" alt="Proprietary"></a>
 </p>
 
 <p align="center">
@@ -94,6 +94,6 @@ and judges: see [baselines/](baselines/README.md).
 
 ## License
 
-MIT. The harness drives the proprietary membase-core engine through its public API only. Datasets
+Copyright © 2026 Unibase. All rights reserved; see [LICENSE](LICENSE). The harness drives the proprietary membase-core engine through its public API only. Datasets
 are downloaded from their sources under their own licenses (LoCoMo is CC BY-NC 4.0); prompts used
 verbatim are listed in [NOTICE](NOTICE).

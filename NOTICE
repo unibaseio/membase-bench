@@ -1,7 +1,5 @@
 membase-bench
-Copyright (c) 2026 membase-bench contributors
-
-MIT-licensed (see LICENSE).
+Copyright (c) 2026 Unibase. All rights reserved (see LICENSE).
 
 Evaluation prompts used verbatim from published harnesses:
     bench/locomo/memori_official_eval.py   Memori's LoCoMo notebook judge prompt
