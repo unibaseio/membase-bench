@@ -28,6 +28,12 @@ finds the evidence: on LongMemEval_S the gold sessions were in the context for e
 
 About 3× fewer tokens than the full conversation on LoCoMo, and 11× fewer on LongMemEval_S.
 
+## What Membase does
+
+<p align="center">
+  <img src="assets/illustrations.svg" width="840" alt="Again; built from what you already have; every AI, same memory; stays current">
+</p>
+
 ## One question, end to end
 
 <p align="center">
@@ -35,8 +41,10 @@ About 3× fewer tokens than the full conversation on LoCoMo, and 11× fewer on L
 </p>
 
 Membase turns a long history into dated episodes, and for each question hands the reader only the
-ones that matter. More at [unibase.com/memory](https://www.unibase.com/memory); the SDK is
-[membase-ai](https://github.com/unibaseio/membase-ai).
+ones that matter; this repository measures how well that works. More at
+[unibase.com/memory](https://www.unibase.com/memory); the SDK is
+[membase-ai](https://github.com/unibaseio/membase-ai) (the illustrations above are drawn by its
+`scripts/figures.py`).
 
 ## Quickstart
 
