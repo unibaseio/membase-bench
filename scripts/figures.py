@@ -76,35 +76,68 @@ def results() -> str:
     return _svg(132, "".join(body), "LoCoMo 93.1%, LongMemEval_S 92.6%, DMR 92.2%", panel=False)
 
 
+def _logo(cx, cy, r):
+    return (f'<circle cx="{cx}" cy="{cy}" r="{r + 9}" fill="#FFFFFF" stroke="{LIGHT}" stroke-width="2"/>'
+            f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{BLUE}"/>'
+            f'<path d="M{cx - r * .32} {cy - r * .38} v{r * .32} M{cx + r * .12} {cy - r * .38} v{r * .32}" '
+            f'stroke="#FFFFFF" stroke-width="{r * .1:.1f}" stroke-linecap="round"/>'
+            f'<path d="M{cx - r * .55} {cy + r * .08} q{r * .55} {r * .62} {r * 1.1} {-r * .1}" fill="none" '
+            f'stroke="#FFFFFF" stroke-width="{r * .1:.1f}" stroke-linecap="round"/>')
+
+
+def _flow(x1, x2, y):
+    return (f'<path d="M{x1} {y} H{x2 - 8}" stroke="{LIGHT}" stroke-width="2" stroke-dasharray="5 5"/>'
+            f'<path d="M{x2 - 9} {y - 6} l8 6 l-8 6" stroke="{LIGHT}" stroke-width="2" fill="none" '
+            f'stroke-linecap="round" stroke-linejoin="round"/>')
+
+
 def example() -> str:
-    b = [_eyebrow(PAD, 38, "ONE QUESTION, END TO END")]
-    for i, line in enumerate(["From 16k tokens", "to the right", "episodes."]):
-        b.append(f'<text x="{PAD}" y="{96 + i * 44}" style="font-size:38px;font-weight:800;letter-spacing:-.02em;'
-                 f'fill:{NIGHT}">{line}</text>')
-    b.append(_text(PAD, 226, "LoCoMo conv-26 · 19 sessions", 14, 400, SUB))
-    for i in range(19):
-        x, y = PAD + (i % 10) * 28, 262 + (i // 10) * 28
-        b.append(f'<rect x="{x}" y="{y}" width="22" height="20" rx="5" fill="{BLUE if i == 1 else "#D5DCFA"}"/>')
-    b.append(f'<rect x="{W - PAD - 270}" y="24" width="270" height="42" rx="14" fill="{BLUE}"/>'
-             + _text(W - PAD - 135, 50, "What did Caroline research?", 14, 600, "#FFFFFF", "middle"))
-    cx, cw = W - PAD - 440, 440
-    rows = ["LGBTQ support, career plans", "Charity race, adoption plans", "Necklace, camping, counseling"]
-    inner = _text(cx + 20, 108, "20 episodes to the reader", 13, 700)
-    for i, t in enumerate(rows):
-        y, gold = 122 + i * 42, i == 1
-        inner += (f'<rect x="{cx + 20}" y="{y}" width="{cw - 40}" height="34" rx="9" fill="{BLUE if gold else "#F3F5FD"}"/>'
-                  + _text(cx + 34, y + 22, f"#{i + 1}", 12, 700, "#FFFFFF" if gold else BLUE)
-                  + _text(cx + 66, y + 22, t, 13, 400, "#FFFFFF" if gold else NIGHT))
-        if gold:
-            inner += _text(cx + cw - 34, y + 22, "evidence", 11, 400, "#DCE3FF", "end")
-    b.append(_card(cx, 82, cw, 178, inner))
-    inner = (_text(cx + 20, 304, "Answer", 13, 700)
-             + _text(cx + 20, 326, "Adoption agencies, especially ones that support", 13)
-             + _text(cx + 20, 345, "LGBTQ+ individuals…", 13)
-             + f'<rect x="{cx + 20}" y="358" width="150" height="24" rx="12" fill="#22A06B"/>'
-             + _text(cx + 95, 374, "Judge: CORRECT", 12, 700, "#FFFFFF", "middle"))
-    b.append(_card(cx, 278, cw, 120, inner))
-    return _svg(422, "".join(b), "One LoCoMo question from history to judged answer")
+    cy, cap = 168, 272
+    c0, c1, c2, c3 = 123, 321, 519, 730
+    b = []
+    # the history: a stack of sessions, one holding the evidence
+    for k in range(4):
+        x, y, front = c0 - 66 - (3 - k) * 10, cy - 50 - (3 - k) * 10, k == 3
+        inner = ""
+        if front:
+            for j, (side, w) in enumerate([(0, 74), (1, 58), (0, 84), (1, 50)]):
+                bx = x + 12 if side == 0 else x + 132 - 12 - w
+                inner += (f'<rect x="{bx}" y="{y + 14 + j * 20}" width="{w}" height="12" rx="6" '
+                          f'fill="{BLUE if j == 2 else (PALE if side == 0 else LIGHT)}"/>')
+        b.append(_card(x, y, 132, 100, inner, "#FFFFFF", 12))
+        if not front:
+            b.append(f'<rect x="{x}" y="{y}" width="132" height="100" rx="12" fill="none" stroke="#D5DCFA" stroke-width="1.5"/>')
+    b.append(_text(c0, cap, "<tspan style='font-weight:700;fill:#12162B'>19</tspan> sessions · 16k tokens",
+                   13, 400, SUB, "middle"))
+    # the question goes to Membase
+    b.append(f'<rect x="{c1 - 112}" y="26" width="224" height="40" rx="14" fill="{BLUE}"/>'
+             f'<path d="M{c1 - 8} 65 l8 9 l8 -9 z" fill="{BLUE}"/>'
+             + _text(c1, 51, "What did Caroline research?", 13.5, 600, "#FFFFFF", "middle"))
+    b.append(_logo(c1, cy, 34))
+    b.append(_text(c1, cap, "Membase search", 13, 700, NIGHT, "middle"))
+    # the episodes it hands the reader
+    for j in range(3):
+        y, gold = cy - 58 + j * 42, j == 1
+        inner = (f'<circle cx="{c2 - 52}" cy="{y + 17}" r="5" fill="{"#FFFFFF" if gold else BLUE}"/>'
+                 f'<rect x="{c2 - 38}" y="{y + 11}" width="{[84, 92, 70][j]}" height="5" rx="2.5" '
+                 f'fill="{"#FFFFFF" if gold else LIGHT}"/>'
+                 f'<rect x="{c2 - 38}" y="{y + 21}" width="{[56, 64, 48][j]}" height="4" rx="2" '
+                 f'fill="{"#C9D3FF" if gold else PALE}"/>')
+        b.append(_card(c2 - 70, y, 140, 34, inner, BLUE if gold else "#FFFFFF", 9))
+    b.append(_text(c2, cap, "<tspan style='font-weight:700;fill:#12162B'>20</tspan> episodes · evidence in",
+                   13, 400, SUB, "middle"))
+    # the answer, judged
+    ax = c3 - 82
+    inner = (_text(ax + 18, cy - 20, "Adoption agencies", 14.5, 700)
+             + _text(ax + 18, cy + 1, "that support LGBTQ+", 13, 400, SUB)
+             + f'<rect x="{ax + 18}" y="{cy + 18}" width="104" height="26" rx="13" fill="#22A06B"/>'
+             f'<path d="M{ax + 31} {cy + 31} l4 4 l8 -8" stroke="#FFFFFF" stroke-width="2.4" fill="none" '
+             f'stroke-linecap="round" stroke-linejoin="round"/>'
+             + _text(ax + 50, cy + 35, "CORRECT", 12, 700, "#FFFFFF"))
+    b.append(_card(ax, cy - 52, 164, 112, inner))
+    b.append(_text(c3, cap, "Answer, judged", 13, 700, NIGHT, "middle"))
+    b.append(_flow(c0 + 76, c1 - 50, cy) + _flow(c1 + 50, c2 - 76, cy) + _flow(c2 + 76, ax - 6, cy))
+    return _svg(304, "".join(b), "One LoCoMo question from history to judged answer")
 
 
 def categories() -> str:
