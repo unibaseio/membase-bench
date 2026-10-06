@@ -80,27 +80,19 @@ def _legend(x: int, y: int, items: list[tuple[str, str]]) -> str:
 
 
 def pipeline() -> str:
-    steps = [("Ingest", "sessions → dated episodes"), ("Search", "multi-round LLM decider"),
-             ("Answer", "reader model"), ("Judge", "gpt-4o-mini vs gold")]
-    w, h, gap = 186, 74, 32
+    steps = ["Ingest", "Search", "Answer", "Judge"]
+    w, h, gap = 186, 56, 32
     body = []
-    for i, (name, sub) in enumerate(steps):
+    for i, name in enumerate(steps):
         x = i * (w + gap)
-        fill = BLUE if i < 2 else LIGHT
-        body.append(f'<rect x="{x}" y="10" width="{w}" height="{h}" rx="14" fill="{fill}"/>'
-                    f'<text class="w" x="{x + w / 2}" y="42" text-anchor="middle" '
-                    f'style="font-size:17px;font-weight:700">{name}</text>'
-                    f'<text class="w" x="{x + w / 2}" y="64" text-anchor="middle" '
-                    f'style="font-size:12.5px">{sub}</text>')
+        body.append(f'<rect x="{x}" y="6" width="{w}" height="{h}" rx="14" fill="{BLUE if i < 2 else LIGHT}"/>'
+                    f'<text class="w" x="{x + w / 2}" y="40" text-anchor="middle" '
+                    f'style="font-size:17px;font-weight:700">{name}</text>')
         if i < len(steps) - 1:
             ax = x + w + 6
-            body.append(f'<path d="M{ax} 47 h{gap - 14} m-7 -6 l7 6 l-7 6" stroke="{GREY}" '
+            body.append(f'<path d="M{ax} 34 h{gap - 14} m-7 -6 l7 6 l-7 6" stroke="{GREY}" '
                         f'stroke-width="2" fill="none"/>')
-    body.append(f'<text class="s" x="{(w * 2 + gap) / 2}" y="108" text-anchor="middle">'
-                f'membase-core, public API only</text>'
-                f'<text class="s" x="{w * 3 + gap * 2.5}" y="108" text-anchor="middle">'
-                f'OpenAI, outside the engine</text>')
-    return _svg(4 * w + 3 * gap, 118, "".join(body), "Ingest, search, answer, judge")
+    return _svg(4 * w + 3 * gap, 68, "".join(body), "Ingest, search, answer, judge")
 
 
 def context() -> str:
@@ -276,54 +268,46 @@ def spread() -> str:
 
 
 def datasets() -> str:
-    rows = [("LoCoMo", "10 conversations · 1,540 questions", "19–32 sessions per conversation (27 on average)",
-             "~20k-token history", 27, 20),
-            ("LongMemEval_S", "500 questions, each with its own history", "39–66 sessions per question (50 on average)",
-             "~103k-token history", 50, 103),
-            ("DMR", "500 questions, each with its own history", "5 sessions per question",
-             "~1.6k-token history", 5, 1.6)]
-    width, row = 840, 78
-    body = ['<text class="t" x="0" y="18">What each benchmark asks the memory to hold</text>']
-    for i, (name, what, sess, hist, n, k) in enumerate(rows):
-        y = 34 + i * row
+    rows = [("LoCoMo", "10 conversations", "~20k-token history", 27, 20),
+            ("LongMemEval_S", "500 questions", "~103k-token history", 50, 103),
+            ("DMR", "500 questions", "~1.6k-token history", 5, 1.6)]
+    width, row = 840, 62
+    body = ['<text class="t" x="0" y="18">Sessions per conversation or question, and history length</text>']
+    for i, (name, what, hist, n, k) in enumerate(rows):
+        y = 36 + i * row
         body.append(f'<text class="v" x="0" y="{y + 16}" style="font-size:15px;fill:{BLUE}">{name}</text>'
-                    f'<text class="s" x="0" y="{y + 36}">{what}</text>'
-                    f'<text class="s" x="0" y="{y + 54}">{sess}</text>')
+                    f'<text class="s" x="0" y="{y + 36}">{what}</text>')
         for j in range(n):
-            body.append(f'<rect x="{360 + j * 7}" y="{y + 6}" width="5" height="22" rx="1.5" fill="{BLUE}" opacity=".85"/>')
-        bw = 270 * k / 103
-        body.append(f'<rect x="360" y="{y + 36}" width="{max(bw, 3):.1f}" height="12" rx="3" fill="{LIGHT}"/>'
-                    f'<text class="s" x="{360 + max(bw, 3) + 8:.1f}" y="{y + 46}">{hist}</text>')
-    body.append(f'<text class="s" x="360" y="{34 + 3 * row}">each bar one session</text>')
+            body.append(f'<rect x="{200 + j * 7}" y="{y + 4}" width="5" height="20" rx="1.5" fill="{BLUE}" opacity=".85"/>')
+        bw = 340 * k / 103
+        body.append(f'<rect x="200" y="{y + 32}" width="{max(bw, 3):.1f}" height="10" rx="3" fill="{LIGHT}"/>'
+                    f'<text class="s" x="{200 + max(bw, 3) + 8:.1f}" y="{y + 41}">{hist}</text>')
     return _svg(width, 40 + 3 * row, "".join(body), "Sessions and history length per benchmark")
 
 
 def fairness() -> str:
-    w = 840
-    body = ['<text class="t" x="0" y="18">Every system answers the same questions and is graded the same way</text>']
-    def box(x, y, bw, bh, title, sub="", solid=False):
-        fill, ink = (BLUE, "#FFFFFF") if solid else ("#E3E8FF", "#2A3FBF")
-        out = f'<rect x="{x}" y="{y}" width="{bw}" height="{bh}" rx="12" fill="{fill}"/>'
-        out += (f'<text x="{x + bw / 2}" y="{y + (bh / 2 + 5 if not sub else 26)}" text-anchor="middle" '
-                f'style="font-size:15px;font-weight:700;fill:{ink}">{title}</text>')
-        if sub:
-            out += f'<text x="{x + bw / 2}" y="{y + 46}" text-anchor="middle" style="font-size:12.5px;fill:{ink}">{sub}</text>'
-        return out
+    body = ['<text class="t" x="0" y="18">Same questions in, same judges out</text>']
+
+    def box(x, y, bw, bh, title):
+        return (f'<rect x="{x}" y="{y}" width="{bw}" height="{bh}" rx="12" fill="{BLUE}"/>'
+                f'<text x="{x + bw / 2}" y="{y + bh / 2 + 5}" text-anchor="middle" '
+                f'style="font-size:15px;font-weight:700;fill:#FFFFFF">{title}</text>')
+
     def arrow(x1, y1, x2, y2):
         return (f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{GREY}" stroke-width="1.6"/>'
                 f'<path d="M{x2} {y2} l-8 -4 l0 8 z" fill="{GREY}"/>')
-    body.append(box(0, 70, 200, 70, "bench loaders", "same questions, same sessions", solid=True))
+
+    body.append(box(0, 84, 200, 52, "bench loaders"))
     systems = ["Membase", "mem0", "Memori", "LangMem", "Zep", "Graphiti", "full context"]
     for i, name in enumerate(systems):
         y = 34 + i * 22
-        body.append(f'<rect x="300" y="{y}" width="200" height="18" rx="5" fill="{"#3E61FF" if i == 0 else "#E3E8FF"}"/>'
+        body.append(f'<rect x="300" y="{y}" width="200" height="18" rx="5" fill="{BLUE if i == 0 else "#E3E8FF"}"/>'
                     f'<text x="400" y="{y + 13}" text-anchor="middle" style="font-size:12.5px;font-weight:600;'
                     f'fill:{"#FFFFFF" if i == 0 else "#2A3FBF"}">{name}</text>')
-    body.append(arrow(202, 105, 294, 105))
-    body.append(box(600, 70, 240, 70, "bench judges", "one per benchmark, gpt-4o-mini", solid=True))
-    body.append(arrow(502, 105, 594, 105))
-    body.append(f'<text class="s" x="300" y="{34 + 7 * 22 + 12}">hypotheses.jsonl: question_id, hypothesis, category, gold</text>')
-    return _svg(w, 34 + 7 * 22 + 20, "".join(body), "Shared loaders, competing systems, shared judges")
+    body.append(arrow(202, 110, 294, 110))
+    body.append(box(600, 84, 240, 52, "bench judges"))
+    body.append(arrow(502, 110, 594, 110))
+    return _svg(840, 34 + 7 * 22 + 4, "".join(body), "Shared loaders, competing systems, shared judges")
 
 
 NIGHT = "#12162B"
@@ -344,19 +328,17 @@ def example_card() -> str:
          f'<text x="40" y="106" style="font-size:38px;font-weight:800;letter-spacing:-.02em;fill:{NIGHT}">From 16k tokens</text>',
          f'<text x="40" y="150" style="font-size:38px;font-weight:800;letter-spacing:-.02em;fill:{NIGHT}">to the right</text>',
          f'<text x="40" y="194" style="font-size:38px;font-weight:800;letter-spacing:-.02em;fill:{NIGHT}">episodes.</text>',
-         '<text x="40" y="232" style="font-size:14px;fill:#5B6280">LoCoMo conv-26: 19 sessions, 419 turns,</text>',
-         '<text x="40" y="252" style="font-size:14px;fill:#5B6280">turned into 22 dated episodes.</text>']
+         '<text x="40" y="236" style="font-size:14px;fill:#5B6280">LoCoMo conv-26 · 19 sessions</text>']
     for i in range(19):
         x, y = 40 + (i % 10) * 26, 286 + (i // 10) * 26
         b.append(f'<rect x="{x}" y="{y}" width="20" height="18" rx="4" fill="{BLUE if i == 1 else "#D5DCFA"}"/>')
-    b.append('<text x="40" y="358" style="font-size:12px;fill:#5B6280">the 19 sessions; session 2 holds the evidence</text>')
     # question bubble
     b.append(f'<rect x="540" y="40" width="260" height="40" rx="14" fill="{BLUE}"/>'
              f'<text x="670" y="65" text-anchor="middle" style="font-size:14px;font-weight:600;fill:#FFFFFF">'
              f'What did Caroline research?</text>')
     # retrieved episodes
     b.append(_shadow_card(380, 96, 420, 196))
-    b.append(f'<text x="398" y="122" style="font-size:13px;font-weight:700;fill:{NIGHT}">Search · 20 episodes to the reader</text>')
+    b.append(f'<text x="398" y="122" style="font-size:13px;font-weight:700;fill:{NIGHT}">20 episodes to the reader</text>')
     eps = [("1", "2023-05-08", "LGBTQ support, career plans"), ("2", "2023-05-25", "Charity race, adoption plans"),
            ("3", "2023-06-27", "Necklace, camping, counseling")]
     for i, (rank, d, t) in enumerate(eps):
@@ -364,12 +346,9 @@ def example_card() -> str:
         gold = rank == "2"
         b.append(f'<rect x="398" y="{y}" width="384" height="34" rx="9" fill="{BLUE if gold else "#F3F5FD"}"/>'
                  f'<text x="412" y="{y + 22}" style="font-size:12px;font-weight:700;fill:{"#FFFFFF" if gold else BLUE}">#{rank}</text>'
-                 f'<text x="440" y="{y + 22}" style="font-family:ui-monospace,Menlo,monospace;font-size:11px;'
-                 f'fill:{"#DCE3FF" if gold else "#8B93B5"}">{d}</text>'
-                 f'<text x="526" y="{y + 22}" style="font-size:12.5px;fill:{"#FFFFFF" if gold else NIGHT}">{t}</text>')
+                 f'<text x="444" y="{y + 22}" style="font-size:12.5px;fill:{"#FFFFFF" if gold else NIGHT}">{t}</text>')
         if gold:
             b.append(f'<text x="770" y="{y + 22}" text-anchor="end" style="font-size:10.5px;fill:#DCE3FF">evidence</text>')
-    b.append('<text x="412" y="278" style="font-size:12px;fill:#8B93B5">… 17 more</text>')
     # answer + verdict
     b.append(_shadow_card(380, 310, 420, 116))
     b.append(f'<text x="398" y="336" style="font-size:13px;font-weight:700;fill:{NIGHT}">Answer</text>'
@@ -377,8 +356,7 @@ def example_card() -> str:
              f'<text x="398" y="377" style="font-size:13px;fill:{NIGHT}">support LGBTQ+ individuals…</text>'
              f'<rect x="398" y="390" width="164" height="24" rx="12" fill="#22A06B"/>'
              f'<text x="480" y="406" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#FFFFFF">'
-             f'Judge: CORRECT</text>'
-             f'<text x="574" y="406" style="font-size:12px;fill:#5B6280">gold: adoption agencies</text>')
+             f'Judge: CORRECT</text>')
     return _svg(w, h, "".join(b), "One LoCoMo question from history to judged answer")
 
 
