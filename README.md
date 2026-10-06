@@ -19,20 +19,9 @@
   <img src="assets/results.svg" width="840" alt="LoCoMo 93.1%, LongMemEval_S 92.6%, DMR 92.2%">
 </p>
 
-Membase hands the reader a few thousand tokens per question instead of the whole history, and it
-finds the evidence: on LongMemEval_S the gold sessions were in the context for every miss.
-
-<p align="center">
-  <img src="assets/context.svg" width="840" alt="Context tokens per question against the full history">
-</p>
-
-About 3× fewer tokens than the full conversation on LoCoMo, and 11× fewer on LongMemEval_S.
-
-## What Membase does
-
-<p align="center">
-  <img src="assets/illustrations.svg" width="840" alt="Again; built from what you already have; every AI, same memory; stays current">
-</p>
+Membase hands the reader a few thousand tokens per question instead of the whole history (about 3×
+fewer than the full conversation on LoCoMo, 11× on LongMemEval_S), and it finds the evidence: on
+LongMemEval_S the gold sessions were in the context for every miss.
 
 ## One question, end to end
 
@@ -43,8 +32,7 @@ About 3× fewer tokens than the full conversation on LoCoMo, and 11× fewer on L
 Membase turns a long history into dated episodes, and for each question hands the reader only the
 ones that matter; this repository measures how well that works. More at
 [unibase.com/memory](https://www.unibase.com/memory); the SDK is
-[membase-ai](https://github.com/unibaseio/membase-ai) (the illustrations above are drawn by its
-`scripts/figures.py`).
+[membase-ai](https://github.com/unibaseio/membase-ai).
 
 ## Quickstart
 
@@ -174,6 +162,8 @@ On LoCoMo it does not: `gpt-5.5` scores 93.18% on the same stores, at most 1.1 p
 <summary><b>Latency and context size</b></summary>
 
 <img src="assets/latency.svg" width="840" alt="Search and total latency">
+
+<img src="assets/context.svg" width="840" alt="Context tokens per question against the full history">
 
 <img src="assets/spread.svg" width="840" alt="Context tokens per question">
 
