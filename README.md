@@ -109,10 +109,9 @@ or more sessions score as well as single-session ones.
 
 ### Retrieval or reader?
 
-<img src="assets/misses.svg" width="840" alt="Retrieval misses against reader misses">
-
 The gold session reaches the reader for 98.1% of LoCoMo and 99.95% of LongMemEval_S evidence, so
-most wrong answers are the reader's (`python -m bench.retrieval_metrics` on a judged run). DMR
+most wrong answers are the reader's: 89 of LoCoMo's 105 and all 37 of LongMemEval_S's had the gold
+session in front of it (`python -m bench.retrieval_metrics` on a judged run). DMR
 histories are short enough to reach the reader whole; with the same `gpt-4o-mini` reader
 the [Zep paper](https://arxiv.org/abs/2501.13956) (Table 1) reports 98.2% for Zep and 98.0% for the
 full conversation.
@@ -133,10 +132,6 @@ Search includes the multi-round decider's 1–3 LLM calls; that is what keeps th
 own run.
 
 ## Baselines
-
-<p align="center">
-  <img src="assets/fairness.svg" width="840" alt="Shared loaders, competing systems, shared judges">
-</p>
 
 mem0, Memori, LangMem, Zep, Graphiti and a full-context ceiling, on the same LoCoMo and
 LongMemEval_S questions, graded by the same judges — see [baselines/](baselines/README.md).

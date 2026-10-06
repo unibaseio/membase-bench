@@ -7,7 +7,7 @@ from pathlib import Path
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 
 BLUE, DEEP, LIGHT, PALE = "#3E61FF", "#2A3FBF", "#9DB0FF", "#E3E8FF"
-NIGHT, SUB, LINE = "#12162B", "#5B6280", "#A3ACD1"
+NIGHT, SUB = "#12162B", "#5B6280"
 FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif'
 MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
 W, PAD = 840, 24
@@ -20,9 +20,6 @@ LONGMEMEVAL = [
     ("temporal-reasoning", 92.5), ("multi-session", 88.0), ("single-session-assistant", 85.7),
 ]
 
-# Wrong answers with gold evidence: its session not retrieved, or retrieved and still answered wrong.
-MISSES = [("LoCoMo", 16, 89), ("LongMemEval_S", 0, 37)]
-
 # LongMemEval_S 100-question sample, same stores, reader swapped.
 READERS = [("gpt-5.4-mini", 77), ("gpt-4.1-mini", 83), ("gpt-4.1", 86), ("gpt-5", 87),
            ("gpt-5-mini", 87), ("gpt-5.4", 89), ("gpt-5.5", 96)]
@@ -34,8 +31,6 @@ CONTEXT = [("LoCoMo", 6562, 19987), ("LongMemEval_S", 8970, 102795)]
 LATENCY = [("LoCoMo", 1.67, 7.02, 8.30, 18.0), ("LongMemEval_S", 2.53, 6.11, 14.7, 30.2),
            ("DMR", 1.13, 1.71, 3.21, 6.34)]
 
-SYSTEMS = ["Membase", "mem0", "Memori", "LangMem", "Zep", "Graphiti", "full context"]
-
 
 def _svg(height: int, body: str, label: str, eyebrow: str = "", panel: bool = True) -> str:
     bg = f'<rect width="{W}" height="{height}" rx="20" fill="url(#p)"/>' if panel else ""
@@ -43,8 +38,6 @@ def _svg(height: int, body: str, label: str, eyebrow: str = "", panel: bool = Tr
         bg += _eyebrow(PAD, 38, eyebrow)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{height}" '
             f'viewBox="0 0 {W} {height}" role="img" aria-label="{label}"><defs>'
-            f'<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" '
-            f'orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="{LINE}"/></marker>'
             '<linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E9EDFF"/>'
             '<stop offset=".55" stop-color="#F6F7FD"/><stop offset="1" stop-color="#E4E1FB"/></linearGradient>'
             '<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3E61FF"/>'
@@ -66,11 +59,6 @@ def _text(x, y, s, size=13, weight=400, color=NIGHT, anchor="start", mono=False)
     family = f"font-family:{MONO};" if mono else ""
     return (f'<text x="{x}" y="{y}" text-anchor="{anchor}" style="{family}font-size:{size}px;'
             f'font-weight:{weight};fill:{color}">{s}</text>')
-
-
-def _arrow(x1, y1, x2, y2):
-    return (f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{LINE}" stroke-width="1.8" '
-            f'marker-end="url(#a)"/>')
 
 
 def _columns(n, gap=24):
@@ -136,28 +124,6 @@ def categories() -> str:
     return _svg(top + h + PAD, "".join(body), "Accuracy by category and question type", "ACCURACY BY QUESTION TYPE")
 
 
-def misses() -> str:
-    cw, xs = _columns(2)
-    top, h = 56, 150
-    body = []
-    for x, (name, ret, read) in zip(xs, MISSES):
-        bw, total = cw - 40, ret + read
-        inner = (_text(x + 20, top + 34, name, 15, 700)
-                 + _text(x + cw - 20, top + 34, f"{total} wrong", 15, 700, BLUE, "end"))
-        x0 = x + 20
-        for val, color in ((ret, LIGHT), (read, BLUE)):
-            if val:
-                inner += f'<rect x="{x0:.1f}" y="{top + 52}" width="{bw * val / total:.1f}" height="18" rx="5" fill="{color}"/>'
-                x0 += bw * val / total
-        for i, (val, color, label) in enumerate(((ret, LIGHT, "not retrieved"),
-                                                  (read, BLUE, "retrieved, read wrong"))):
-            y = top + 100 + i * 24
-            inner += (f'<rect x="{x + 20}" y="{y - 10}" width="12" height="12" rx="3" fill="{color}"/>'
-                      + _text(x + 40, y, f"<tspan style='font-weight:700;fill:{NIGHT}'>{val}</tspan>  {label}", 13, 400, SUB))
-        body.append(_card(x, top, cw, h, inner))
-    return _svg(top + h + PAD, "".join(body), "Retrieval misses against reader misses", "WHERE THE WRONG ANSWERS COME FROM")
-
-
 def readers() -> str:
     top, h = 56, 230
     cw, n = W - 2 * PAD, len(READERS)
@@ -210,26 +176,8 @@ def latency() -> str:
     return _svg(top + h + PAD, "".join(body), "Search and total latency", "SECONDS PER QUESTION, MEDIAN")
 
 
-def fairness() -> str:
-    top, h = 56, 172
-    body = []
-    mid = top + h / 2
-    for x, title in ((PAD, "Same questions"), (W - PAD - 210, "Same judges")):
-        body.append(_card(x, mid - 32, 210, 64, _text(x + 105, mid + 5, title, 15, 700, "#FFFFFF", "middle"), BLUE))
-    cx, cw = 315, 210
-    inner = ""
-    for i, name in enumerate(SYSTEMS):
-        y = top + 26 + i * 21
-        inner += _text(cx + cw / 2, y + 4, name, 13.5, 700 if i == 0 else 400, BLUE if i == 0 else NIGHT, "middle")
-    body.append(_card(cx, top, cw, h, inner))
-    body.append(_arrow(PAD + 214, mid, cx - 6, mid))
-    body.append(_arrow(cx + cw + 4, mid, W - PAD - 216, mid))
-    return _svg(top + h + PAD, "".join(body), "Shared loaders, competing systems, shared judges",
-                "SAME QUESTIONS, SAME JUDGES")
-
-
-FIGURES = {"results": results, "example": example, "categories": categories, "misses": misses,
-           "readers": readers, "context": context, "latency": latency, "fairness": fairness}
+FIGURES = {"results": results, "example": example, "categories": categories,
+           "readers": readers, "context": context, "latency": latency}
 
 
 if __name__ == "__main__":
