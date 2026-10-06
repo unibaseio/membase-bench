@@ -107,17 +107,17 @@ def example() -> str:
         b.append(_card(x, y, 132, 100, inner, "#FFFFFF", 12))
         if not front:
             b.append(f'<rect x="{x}" y="{y}" width="132" height="100" rx="12" fill="none" stroke="#D5DCFA" stroke-width="1.5"/>')
-    b.append(_text(c0, cap, "<tspan style='font-weight:700;fill:#12162B'>19</tspan> sessions · 16k tokens",
+    b.append(_text(c0, cap, "<tspan style='font-weight:700;fill:#12162B'>19</tspan> sessions · 11k tokens",
                    13, 400, SUB, "middle"))
     # the question goes to Membase
     b.append(f'<rect x="{c1 - 112}" y="26" width="224" height="40" rx="14" fill="{BLUE}"/>'
              f'<path d="M{c1 - 8} 65 l8 9 l8 -9 z" fill="{BLUE}"/>'
-             + _text(c1, 51, "What did Caroline research?", 13.5, 600, "#FFFFFF", "middle"))
+             + _text(c1, 51, "When was Jon in Paris?", 13.5, 600, "#FFFFFF", "middle"))
     b.append(_logo(c1, cy, 34))
     b.append(_text(c1, cap, "Membase search", 13, 700, NIGHT, "middle"))
     # the episodes it hands the reader
     for j in range(3):
-        y, gold = cy - 58 + j * 42, j == 1
+        y, gold = cy - 58 + j * 42, j == 0
         inner = (f'<circle cx="{c2 - 52}" cy="{y + 17}" r="5" fill="{"#FFFFFF" if gold else BLUE}"/>'
                  f'<rect x="{c2 - 38}" y="{y + 11}" width="{[84, 92, 70][j]}" height="5" rx="2.5" '
                  f'fill="{"#FFFFFF" if gold else LIGHT}"/>'
@@ -128,8 +128,8 @@ def example() -> str:
                    13, 400, SUB, "middle"))
     # the answer, judged
     ax = c3 - 82
-    inner = (_text(ax + 18, cy - 20, "Adoption agencies", 14.5, 700)
-             + _text(ax + 18, cy + 1, "that support LGBTQ+", 13, 400, SUB)
+    inner = (_text(ax + 18, cy - 20, "28 January 2023", 14.5, 700)
+             + _text(ax + 18, cy + 1, "from session 2", 13, 400, SUB)
              + f'<rect x="{ax + 18}" y="{cy + 18}" width="104" height="26" rx="13" fill="#22A06B"/>'
              f'<path d="M{ax + 31} {cy + 31} l4 4 l8 -8" stroke="#FFFFFF" stroke-width="2.4" fill="none" '
              f'stroke-linecap="round" stroke-linejoin="round"/>'
