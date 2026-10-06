@@ -5,8 +5,7 @@
 <h1 align="center">membase-bench</h1>
 
 <p align="center">
-  <b>Long-term memory benchmarks for <a href="https://www.unibase.com/memory">Membase</a></b><br>
-  LoCoMo · LongMemEval · DMR — reproducible end to end, with competitor baselines on the same data.
+  <b>Long-term memory benchmarks for <a href="https://www.unibase.com/memory">Membase</a></b>
 </p>
 
 <p align="center">
@@ -19,17 +18,11 @@
   <img src="assets/results.svg" width="840" alt="LoCoMo 93.1%, LongMemEval_S 92.6%, DMR 92.2%">
 </p>
 
-Membase answers long-term memory questions at 92–93% accuracy on three public benchmarks, handing
-the model 3× (LoCoMo) to 11× (LongMemEval_S) fewer tokens than the full history.
-
 ## How Membase remembers
 
 <p align="center">
   <img src="assets/example.svg" width="840" alt="Membase turns a long history into episodes and hands the reader the ones that matter">
 </p>
-
-Membase turns a conversation history into dated episodes. For each question it searches them and
-hands the model only the ones that matter, with the evidence among them.
 
 ## Benchmarks
 
@@ -43,26 +36,14 @@ Each benchmark follows the protocol of its best-known published numbers.
 
 ## Results
 
-### Accuracy by question type
-
 <img src="assets/categories.svg" width="840" alt="Accuracy by category and question type">
 
-LoCoMo **93.12%** · LongMemEval_S **92.60%** · DMR **92.20%**.
-
-### Context per question
-
 <img src="assets/context.svg" width="840" alt="Context tokens per question against the full history">
-
-The context stays at a few thousand tokens however long the history grows.
-
-### Retrieval and the reader
 
 <img src="assets/readers.svg" width="840" alt="Accuracy by reader on a LongMemEval_S sample">
 
 98.1% of LoCoMo's and 99.95% of LongMemEval_S's evidence sessions reach the model, so most wrong
-answers come from the reader; a stronger reader lifts LongMemEval_S, hence `gpt-5.5`.
-
-### Latency
+answers come from the reader; hence `gpt-5.5` on LongMemEval_S.
 
 <img src="assets/latency.svg" width="840" alt="Search and total latency">
 
@@ -94,6 +75,5 @@ and judges: see [baselines/](baselines/README.md).
 
 ## License
 
-Copyright © 2026 Unibase. All rights reserved; see [LICENSE](LICENSE). The harness drives the proprietary membase-core engine through its public API only. Datasets
-are downloaded from their sources under their own licenses (LoCoMo is CC BY-NC 4.0); prompts used
-verbatim are listed in [NOTICE](NOTICE).
+Copyright © 2026 Unibase. All rights reserved; see [LICENSE](LICENSE). Datasets keep their own
+licenses (LoCoMo is CC BY-NC 4.0); third-party prompts are listed in [NOTICE](NOTICE).
