@@ -59,7 +59,7 @@ Each benchmark keeps the protocol of its best-known published numbers.
 | | What it tests | Reader | Judge (`gpt-4o-mini`) |
 |---|---|---|---|
 | **LoCoMo** | 10 long two-person conversations, 1,540 questions (categories 1–4) | `gpt-4.1-mini` | Memori's CORRECT/WRONG prompt |
-| **LongMemEval_S** | 500 questions, each over its own ~47-session chat history | `gpt-5.5` | Memori's prompt + LongMemEval's per-type rules |
+| **LongMemEval_S** | 500 questions, each over its own ~50-session chat history | `gpt-5.5` | Memori's prompt + LongMemEval's per-type rules |
 | **DMR** | 500 questions on MemGPT's MSC-Self-Instruct, Zep's harness verbatim | `gpt-4o-mini` | MemGPT's prompt |
 
 <p align="center">
