@@ -326,10 +326,53 @@ def fairness() -> str:
     return _svg(w, 34 + 7 * 22 + 20, "".join(body), "Shared loaders, competing systems, shared judges")
 
 
+def example() -> str:
+    width = 840
+    body = ['<text class="t" x="0" y="18">One LoCoMo question, end to end (conv-26-q3)</text>']
+    # history: 19 sessions
+    body.append('<text class="v" x="0" y="50">History</text>'
+                '<text class="s" x="0" y="68">19 sessions · 419 turns</text>'
+                '<text class="s" x="0" y="84">~16k tokens</text>')
+    for i in range(19):
+        x, y = (i % 5) * 34, 98 + (i // 5) * 26
+        fill = BLUE if i == 1 else PALE
+        body.append(f'<rect x="{x}" y="{y}" width="28" height="18" rx="4" fill="{fill}"/>')
+    body.append('<text class="s" x="0" y="218">session 2 holds the gold evidence</text>')
+    body.append(f'<path d="M180 140 h44" stroke="{GREY}" stroke-width="1.6"/><path d="M224 140 l-8 -4 v8 z" fill="{GREY}"/>'
+                f'<text class="s" x="202" y="130" text-anchor="middle">ingest</text>')
+    # episodes
+    eps = [("05-08", "LGBTQ support, career plans"), ("05-25", "charity race, adoption plans"),
+           ("06-27", "necklace, camping, counseling"), ("…", "19 more, one per topic")]
+    body.append('<text class="v" x="236" y="50">22 dated episodes</text>'
+                '<text class="s" x="236" y="68">Caroline\'s, one per topic</text>')
+    for i, (d, t) in enumerate(eps):
+        y = 82 + i * 34
+        gold = i == 1
+        body.append(f'<rect x="236" y="{y}" width="220" height="28" rx="6" fill="{BLUE if gold else PALE}"/>'
+                    f'<text x="246" y="{y + 18}" style="font-size:12px;font-weight:600;fill:{"#FFFFFF" if gold else BLUE}">'
+                    f'{d}</text><text x="292" y="{y + 18}" style="font-size:12px;fill:{"#FFFFFF" if gold else GREY}">{t}</text>')
+    body.append(f'<path d="M462 140 h44" stroke="{GREY}" stroke-width="1.6"/><path d="M506 140 l-8 -4 v8 z" fill="{GREY}"/>'
+                f'<text class="s" x="484" y="130" text-anchor="middle">search</text>')
+    # question, retrieval, answer, judge
+    x = 518
+    body.append(f'<text class="v" x="{x}" y="50">“What did Caroline research?”</text>'
+                f'<text class="s" x="{x}" y="70">20 episodes handed to the reader;</text>'
+                f'<text class="s" x="{x}" y="86">the session-2 episode ranks 2nd</text>')
+    body.append(f'<rect x="{x}" y="102" width="{width - x}" height="62" rx="10" fill="{PALE}"/>'
+                f'<text x="{x + 12}" y="122" style="font-size:12px;font-weight:600;fill:{BLUE}">Answer</text>'
+                f'<text x="{x + 12}" y="140" style="font-size:12.5px;fill:{GREY}">Adoption agencies, especially ones</text>'
+                f'<text x="{x + 12}" y="156" style="font-size:12.5px;fill:{GREY}">that support LGBTQ+ individuals…</text>')
+    body.append(f'<rect x="{x}" y="174" width="{width - x}" height="44" rx="10" fill="{BLUE}"/>'
+                f'<text x="{x + 12}" y="194" style="font-size:12px;fill:#DCE3FF">Gold: adoption agencies</text>'
+                f'<text x="{x + 12}" y="211" style="font-size:13px;font-weight:700;fill:#FFFFFF">Judge: CORRECT</text>')
+    return _svg(width, 228, "".join(body), "One LoCoMo question from history to judged answer")
+
+
 FIGURES = {"pipeline": pipeline, "context": context, "categories": categories,
            "misses": misses, "readers": readers, "latency": latency, "recall": recall,
            "swap": swap, "conversations": conversations, "evidence": evidence, "heatmap": heatmap,
-           "spread": spread, "datasets": datasets, "fairness": fairness}
+           "spread": spread, "datasets": datasets, "fairness": fairness,
+           "example": example}
 
 
 if __name__ == "__main__":

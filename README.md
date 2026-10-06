@@ -28,15 +28,14 @@ finds the evidence: on LongMemEval_S the gold sessions were in the context for e
 
 About 3× fewer tokens than the full conversation on LoCoMo, and 11× fewer on LongMemEval_S.
 
-## What Membase does
+## One question, end to end
 
 <p align="center">
-  <img src="assets/promo.jpg" width="840" alt="One memory for every AI: built from your notes, files and chats, the same answer in your assistant and in Claude Code, kept current as facts change">
+  <img src="assets/example.svg" width="840" alt="One LoCoMo question from history to judged answer">
 </p>
 
-One memory for every AI, built from your notes, files and chats, kept current as facts change. This
-repository measures how well that memory answers. More at
-[unibase.com/memory](https://www.unibase.com/memory); the SDK is
+Membase turns a long history into dated episodes, and for each question hands the reader only the
+ones that matter. More at [unibase.com/memory](https://www.unibase.com/memory); the SDK is
 [membase-ai](https://github.com/unibaseio/membase-ai).
 
 ## Quickstart
@@ -74,15 +73,6 @@ public API; episode extraction and the decider use `gpt-4.1-mini`.
   <img src="assets/pipeline.svg" width="840" alt="Ingest, search, answer, judge">
 </p>
 
-**One question, end to end** (LoCoMo `conv-26-q3`, multi-hop):
-
-| | |
-|---|---|
-| Question | *What did Caroline research?* |
-| Gold answer | Adoption agencies |
-| Search | 20 episodes out of the conversation's 19 sessions; the one from session 2, where the gold evidence (`D2:8`) sits, ranks 2nd |
-| Answer | "Caroline researched adoption agencies, particularly those that support LGBTQ+ individuals, as part of her dream to provide a loving home to children in need. …" |
-| Judge | CORRECT |
 
 ## Reproduce
 
