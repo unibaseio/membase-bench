@@ -1,4 +1,4 @@
-"""The harness uses only membase-core's public API."""
+"""The harness uses only unibaseio-membase-core's public API."""
 
 from __future__ import annotations
 

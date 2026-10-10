@@ -1,4 +1,4 @@
-"""Run LoCoMo through membase-core."""
+"""Run LoCoMo through unibaseio-membase-core."""
 
 from __future__ import annotations
 

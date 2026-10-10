@@ -1,4 +1,4 @@
-"""Run LongMemEval_S through membase-core, one store per question."""
+"""Run LongMemEval_S through unibaseio-membase-core, one store per question."""
 
 from __future__ import annotations
 

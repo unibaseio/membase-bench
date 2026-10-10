@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/membase-core/"><img src="https://img.shields.io/pypi/v/membase-core?label=membase-core" alt="membase-core"></a>
+  <a href="https://pypi.org/project/unibaseio-membase-core/"><img src="https://img.shields.io/pypi/v/unibaseio-membase-core?label=unibaseio-membase-core" alt="unibaseio-membase-core"></a>
   <img src="https://img.shields.io/badge/python-3.12%20%7C%203.13-blue" alt="Python 3.12 | 3.13">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-proprietary-blue" alt="Proprietary"></a>
 </p>

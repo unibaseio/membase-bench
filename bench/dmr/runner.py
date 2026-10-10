@@ -1,4 +1,4 @@
-"""Run DMR through membase-core; answers use Zep's prompt on gpt-4o-mini."""
+"""Run DMR through unibaseio-membase-core; answers use Zep's prompt on gpt-4o-mini."""
 
 from __future__ import annotations
 

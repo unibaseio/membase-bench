@@ -1,7 +1,7 @@
 [project]
 name = "membase-bench"
 version = "0.1.0"
-description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (membase-core)."
+description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (unibaseio-membase-core)."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 license = "LicenseRef-Proprietary"
@@ -9,7 +9,7 @@ license-files = ["LICENSE", "NOTICE"]
 dependencies = [
     # The engine under test, pinned to one release. The harness uses only its public API
     # (the names exported by `membase_core`, the CoreMemoryEngine methods, MEMBASE_* settings).
-    "membase-core==0.2.3",
+    "unibaseio-membase-core==0.3.0",
     # Judges, the DMR reader and the baselines call OpenAI directly (bench/common/llm.py).
     "openai>=1.50",
     "pydantic>=2",
