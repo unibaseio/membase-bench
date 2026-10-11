@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv venv --python 3.12
+      # CPU torch: sentence-transformers would otherwise pull the multi-GB CUDA build.
+      - run: uv pip install --torch-backend cpu -r pyproject.toml --extra dev
+      - run: .venv/bin/ruff check bench tests
+      - run: .venv/bin/pytest

@@ -1,0 +1,45 @@
+[project]
+name = "membase-bench"
+version = "0.1.0"
+description = "LoCoMo, LongMemEval and DMR harnesses for the Membase memory engine (membase-core)."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = [
+    # The engine under test, pinned to one release. The harness uses only its public API
+    # (the names exported by `membase_core`, the CoreMemoryEngine methods, MEMBASE_* settings).
+    "membase-core==0.2.3",
+    # Judges, the DMR reader and the baselines call OpenAI directly (bench/common/llm.py).
+    "openai>=1.50",
+    "pydantic>=2",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "ruff==0.15.12"]
+# Competitor baselines (baselines/): one extra per system, since their dependency trees clash.
+mem0 = ["mem0ai"]
+memori = ["memori"]
+langmem = ["langmem", "langgraph"]
+zep = ["zep-cloud"]
+graphiti = ["graphiti-core[falkordb]"]
+
+[project.urls]
+Repository = "https://github.com/unibaseio/membase-bench"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bench", "baselines"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
