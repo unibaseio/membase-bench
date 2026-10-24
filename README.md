@@ -38,6 +38,20 @@ Each benchmark follows the protocol of its best-known published numbers.
 
 <img src="assets/categories.svg" width="840" alt="Accuracy by category and question type">
 
+LoCoMo by category — 1,540 graded questions, categories 1–4 (category 5 dropped, as every
+published LoCoMo figure does). Measured 2026-09-18 on a fresh store.
+
+| category | n | ours |
+|---|---|---|
+| multi_hop | 282 | 93.6% |
+| open_domain | 96 | 83.3% |
+| single_hop | 841 | 94.6% |
+| temporal | 321 | 91.6% |
+| **micro** | **1,540** | **93.12%** |
+
+Run-to-run noise on this benchmark is about 0.9pp; differences inside that band are not
+differences.
+
 <img src="assets/context.svg" width="840" alt="Context tokens per question against the full history">
 
 <img src="assets/readers.svg" width="840" alt="Accuracy by reader on a LongMemEval_S sample">
