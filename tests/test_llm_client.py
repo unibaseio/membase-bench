@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import httpx
 import openai
 import pytest
+
+try:  # openai 3 speaks httpx2; earlier releases speak httpx
+    import httpx2 as httpx
+except ImportError:
+    import httpx
 
 from bench.common import llm
 
