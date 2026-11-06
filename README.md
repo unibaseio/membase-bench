@@ -84,6 +84,16 @@ python -m bench.dmr.runner --out runs/dmr.jsonl --workdir .cache/dmr --workers 1
 python -m bench.dmr.judge runs/dmr.jsonl --out runs/dmr.judged.jsonl
 ```
 
+Cost and wall clock, measured 2026-09-21: about $5 to build the ten LoCoMo stores and about $8
+per full answer-and-judge pass, roughly 20 minutes to build and 15 to evaluate. `--workdir` keeps
+the stores, so a second arm over the same stores skips ingest.
+
+The reader model is deliberately not the strongest one on LoCoMo. Re-answering the same stores
+with `gpt-5.5` scores 93.18 against 93.12 — paired, that is 42 questions fixed and 41 broken, a
+net of one, which is inside the noise — while abstentions rise from 3 to 26. `gpt-4.1-mini` gets
+the same number for far less. LongMemEval_S is the opposite case and does use `gpt-5.5`: there
+the evidence reaches the model and the reader is what limits the score.
+
 Competitor systems (mem0, Memori, LangMem, Zep, Graphiti, full context) run on the same questions
 and judges: see [baselines/](baselines/README.md).
 
